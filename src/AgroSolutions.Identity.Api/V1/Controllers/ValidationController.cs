@@ -1,10 +1,10 @@
+using System.Net;
 using AgroSolutions.Identity.Api.Controllers;
 using AgroSolutions.Identity.Domain.Interfaces;
 using AgroSolutions.Identity.Shared.Constants;
 using AgroSolutions.Identity.Shared.Models.Requests;
 using AgroSolutions.Identity.Shared.Models.Responses;
 using Microsoft.AspNetCore.Mvc;
-using System.Net;
 
 namespace AgroSolutions.Identity.Api.V1.Controllers;
 
@@ -16,9 +16,12 @@ public class ValidationController(
     IUser appUser,
     IHttpContextAccessor httpContextAccessor,
     IWebHostEnvironment webHostEnvironment,
-    IKeycloakService keycloakService
+    IKeycloakService keycloakService,
+    ILogger<ValidationController> logger
 ) : MainController(notifier, appUser, httpContextAccessor, webHostEnvironment)
 {
+    private readonly ILogger<ValidationController> _logger = logger;
+
     /// <summary>
     /// Validates a JWT token for other microservices.
     /// </summary>
@@ -32,57 +35,35 @@ public class ValidationController(
     [ProducesResponseType(typeof(Root<object>), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<Root<TokenValidationResponse>>> ValidateToken()
     {
-        Console.WriteLine("[TRACE] ValidateToken endpoint called");
-        Console.WriteLine($"[TRACE] Request method: {Request.Method}");
-        Console.WriteLine($"[TRACE] Request path: {Request.Path}");
-        Console.WriteLine($"[TRACE] Content-Type: {Request.ContentType}");
-        Console.WriteLine($"[TRACE] User-Agent: {Request.Headers.UserAgent}");
-
         var authHeader = Request.Headers.Authorization.FirstOrDefault();
-        Console.WriteLine($"[TRACE] Authorization header present: {authHeader != null}");
-        Console.WriteLine(
-            $"[TRACE] Authorization header value: {authHeader?[..Math.Min(30, authHeader?.Length ?? 0)]}..."
-        );
 
         if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
         {
-            Console.WriteLine("[ERROR] Token not provided or invalid format");
+            _logger.LogWarning("Token validation failed: Token not provided or invalid format");
             NotifyError("Token not provided or invalid format.");
             return CustomResponse<TokenValidationResponse>(statusCode: HttpStatusCode.Unauthorized);
         }
 
         var token = authHeader.Replace("Bearer ", "");
-        Console.WriteLine($"[TRACE] Token extracted, length: {token.Length}");
 
         try
         {
-            // Log the token for debugging (first 20 chars only for security)
-            Console.WriteLine(
-                $"[DEBUG] Validating token starting with: {token[..Math.Min(20, token.Length)]}..."
-            );
-
-            Console.WriteLine("[TRACE] Calling keycloakService.ValidateTokenAsync");
-            // Validate token via Keycloak
             var userInfo = await keycloakService.ValidateTokenAsync(token);
-            Console.WriteLine(
-                $"[TRACE] keycloakService.ValidateTokenAsync returned: {userInfo != null}"
-            );
 
             if (userInfo == null)
             {
-                Console.WriteLine(
-                    "[ERROR] Keycloak returned null userInfo - token invalid or expired"
-                );
+                _logger.LogWarning("Token validation failed: Invalid or expired token");
                 NotifyError("Invalid or expired token.");
                 return CustomResponse<TokenValidationResponse>(
                     statusCode: HttpStatusCode.Unauthorized
                 );
             }
 
-            Console.WriteLine(
-                $"[TRACE] User validated successfully. UserId: {userInfo.Id}, Username: {userInfo.Username}"
+            _logger.LogInformation(
+                "Token validated successfully for user {Username} ({UserId})",
+                userInfo.Username,
+                userInfo.Id
             );
-            Console.WriteLine($"[TRACE] User roles: {string.Join(", ", userInfo.Roles ?? [])}");
 
             var response = new TokenValidationResponse
             {
@@ -96,18 +77,11 @@ public class ValidationController(
                 Roles = userInfo.Roles,
             };
 
-            Console.WriteLine("[TRACE] ValidateToken returning success response");
             return CustomResponse(response);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ERROR] Exception in ValidateToken: {ex.Message}");
-            Console.WriteLine($"[ERROR] Exception type: {ex.GetType().Name}");
-            Console.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
-            if (ex.InnerException != null)
-            {
-                Console.WriteLine($"[ERROR] Inner exception: {ex.InnerException.Message}");
-            }
+            _logger.LogError(ex, "Error validating token");
             NotifyError("Error validating token.");
             return CustomResponse<TokenValidationResponse>(statusCode: HttpStatusCode.Unauthorized);
         }
@@ -128,29 +102,24 @@ public class ValidationController(
         [FromBody] PermissionValidationRequest request
     )
     {
-        Console.WriteLine("[TRACE] ValidatePermission endpoint called");
-        Console.WriteLine($"[TRACE] Request method: {Request.Method}");
-        Console.WriteLine($"[TRACE] Request path: {Request.Path}");
-
         if (request == null)
         {
-            Console.WriteLine("[ERROR] ValidatePermission request is null");
+            _logger.LogWarning("Permission validation failed: Request is null");
             NotifyError("Request cannot be null.");
             return CustomResponse<PermissionValidationResponse>(
                 statusCode: HttpStatusCode.BadRequest
             );
         }
 
-        Console.WriteLine(
-            $"[TRACE] Permission request - Resource: {request.Resource}, Action: {request.Action}"
-        );
-
         var authHeader = Request.Headers.Authorization.FirstOrDefault();
-        Console.WriteLine($"[TRACE] Authorization header present: {authHeader != null}");
 
         if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
         {
-            Console.WriteLine("[ERROR] ValidatePermission - Token not provided or invalid format");
+            _logger.LogWarning(
+                "Permission validation failed for {Resource}:{Action} - Token not provided",
+                request.Resource,
+                request.Action
+            );
             NotifyError("Token not provided or invalid format.");
             return CustomResponse<PermissionValidationResponse>(
                 statusCode: HttpStatusCode.Unauthorized
@@ -158,47 +127,37 @@ public class ValidationController(
         }
 
         var token = authHeader.Replace("Bearer ", "");
-        Console.WriteLine($"[TRACE] ValidatePermission - Token extracted, length: {token.Length}");
 
         try
         {
-            Console.WriteLine(
-                "[TRACE] ValidatePermission - Calling keycloakService.ValidateTokenAsync"
-            );
-            // Validate token first
             var userInfo = await keycloakService.ValidateTokenAsync(token);
-            Console.WriteLine(
-                $"[TRACE] ValidatePermission - Token validation result: {userInfo != null}"
-            );
 
             if (userInfo == null)
             {
-                Console.WriteLine("[ERROR] ValidatePermission - Keycloak returned null userInfo");
+                _logger.LogWarning(
+                    "Permission validation failed for {Resource}:{Action} - Invalid token",
+                    request.Resource,
+                    request.Action
+                );
                 NotifyError("Invalid or expired token.");
                 return CustomResponse<PermissionValidationResponse>(
                     statusCode: HttpStatusCode.Unauthorized
                 );
             }
 
-            Console.WriteLine(
-                $"[TRACE] ValidatePermission - User validated: {userInfo.Username} ({userInfo.Id})"
-            );
-            Console.WriteLine(
-                $"[TRACE] ValidatePermission - User roles: {string.Join(", ", userInfo.Roles ?? [])}"
-            );
-
-            Console.WriteLine(
-                $"[TRACE] ValidatePermission - Checking permission {request.Resource}:{request.Action}"
-            );
-            // Check user permissions
             var hasPermission = await ValidateUserPermission(
                 userInfo,
                 request.Resource,
                 request.Action
             );
 
-            Console.WriteLine(
-                $"[TRACE] ValidatePermission - Permission check result: {hasPermission}"
+            _logger.LogInformation(
+                "Permission validation for user {Username} ({UserId}) on {Resource}:{Action} - Result: {HasPermission}",
+                userInfo.Username,
+                userInfo.Id,
+                request.Resource,
+                request.Action,
+                hasPermission
             );
 
             var response = new PermissionValidationResponse
@@ -209,18 +168,16 @@ public class ValidationController(
                 Action = request.Action,
             };
 
-            Console.WriteLine("[TRACE] ValidatePermission returning response");
             return CustomResponse(response);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ERROR] Exception in ValidatePermission: {ex.Message}");
-            Console.WriteLine($"[ERROR] Exception type: {ex.GetType().Name}");
-            Console.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
-            if (ex.InnerException != null)
-            {
-                Console.WriteLine($"[ERROR] Inner exception: {ex.InnerException.Message}");
-            }
+            _logger.LogError(
+                ex,
+                "Error validating permission for {Resource}:{Action}",
+                request.Resource,
+                request.Action
+            );
             NotifyError("Error validating permission.");
             return CustomResponse<PermissionValidationResponse>(
                 statusCode: HttpStatusCode.Unauthorized
@@ -246,11 +203,6 @@ public class ValidationController(
     {
         // Obtém as roles do usuário vindas do Keycloak
         var userRoles = userInfo.Roles ?? [];
-
-        // Log para debug
-        Console.WriteLine(
-            $"[DEBUG] Validating permission {resource}:{action} for user roles: {string.Join(", ", userRoles)}"
-        );
 
         // Matriz de permissões por role - Sistema simplificado com apenas 3 permissões
         var rolePermissions = new Dictionary<string, List<string>>

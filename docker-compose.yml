@@ -1,6 +1,7 @@
 networks:
-  default:
+  agrosolutions-network:
     driver: bridge
+    name: agrosolutions-network
 
 services:
   # 🗄️ Keycloak Database
@@ -20,6 +21,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - agrosolutions-network
 
   # 🔐 Keycloak (Identity Provider)
   keycloak:
@@ -46,6 +49,8 @@ services:
       timeout: 5s
       retries: 10
       start_period: 90s
+    networks:
+      - agrosolutions-network
 
   # 📊 Observability Stack
   prometheus:
@@ -57,12 +62,16 @@ services:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - agrosolutions-network
 
   loki:
     image: grafana/loki:latest
     container_name: loki
     ports:
       - "3100:3100"
+    networks:
+      - agrosolutions-network
 
   tempo:
     image: grafana/tempo:latest
@@ -73,6 +82,8 @@ services:
     ports:
       - "3200:3200" # Tempo UI
       - "4317"      # OTLP gRPC
+    networks:
+      - agrosolutions-network
 
   otel-collector:
     image: otel/opentelemetry-collector:latest
@@ -87,6 +98,8 @@ services:
     depends_on:
       - loki
       - tempo
+    networks:
+      - agrosolutions-network
 
   grafana:
     image: grafana/grafana:latest
@@ -102,6 +115,8 @@ services:
       - prometheus
       - loki
       - tempo
+    networks:
+      - agrosolutions-network
 
   # 🚀 Identity API (Aplicação Principal)
   identity-api:
@@ -162,6 +177,8 @@ services:
       - ALL
     cap_add:
       - NET_BIND_SERVICE
+    networks:
+      - agrosolutions-network
 
 volumes:
   keycloak_db_data:

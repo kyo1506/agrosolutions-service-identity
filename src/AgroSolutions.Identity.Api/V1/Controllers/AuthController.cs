@@ -1,9 +1,9 @@
+using System.Net;
 using AgroSolutions.Identity.Api.Controllers;
 using AgroSolutions.Identity.Domain.Interfaces;
 using AgroSolutions.Identity.Shared.Models.Requests;
 using AgroSolutions.Identity.Shared.Models.Responses;
 using Microsoft.AspNetCore.Mvc;
-using System.Net;
 
 namespace AgroSolutions.Identity.Api.V1.Controllers;
 
