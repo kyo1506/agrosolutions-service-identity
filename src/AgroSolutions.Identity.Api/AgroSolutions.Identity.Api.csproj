@@ -35,6 +35,11 @@
     <PackageReference Include="Serilog.Sinks.OpenTelemetry" Version="4.2.0" />
     <PackageReference Include="System.Linq.Async" Version="7.0.0" />
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="10.0.2" />
+    <PackageReference Include="MassTransit" Version="9.0.0" />
+    <PackageReference Include="MassTransit.RabbitMQ" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.2" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\AgroSolutions.Identity.Domain\AgroSolutions.Identity.Domain.csproj" />

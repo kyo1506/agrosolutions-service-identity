@@ -1,3 +1,4 @@
+using System.Diagnostics.Metrics;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -27,6 +28,12 @@ public static class OpenTelemetryConfiguration
             ?? environment.EnvironmentName;
 
         var otlpEndpoint = configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+
+        // Registrar Meter para métricas customizadas de eventos
+        services.AddSingleton(sp =>
+        {
+            return new Meter("AgroSolutions.Identity.Events", "1.0.0");
+        });
 
         // Se não houver endpoint OTLP configurado, não adiciona OpenTelemetry
         if (string.IsNullOrEmpty(otlpEndpoint))
@@ -72,6 +79,8 @@ public static class OpenTelemetryConfiguration
                     .AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
                     .AddRuntimeInstrumentation()
+                    .AddMeter("AgroSolutions.Identity.Events") // Métricas customizadas de eventos
+                    .AddMeter("MassTransit") // Métricas do MassTransit
                     .AddOtlpExporter()
             );
 

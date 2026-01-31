@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using AgroSolutions.Identity.Domain.Events;
 using AgroSolutions.Identity.Domain.Interfaces;
 using AgroSolutions.Identity.Domain.Notifications;
 using AgroSolutions.Identity.Infrastructure.Extensions;
@@ -15,7 +16,8 @@ public class KeycloakService(
     HttpClient httpClient,
     IOptions<KeycloakConfiguration> config,
     INotifier notifier,
-    IUser userAuthenticated
+    IUser userAuthenticated,
+    IEventPublisher eventPublisher
 ) : IKeycloakService
 {
     private readonly KeycloakConfiguration _config = config.Value;
@@ -113,14 +115,33 @@ public class KeycloakService(
                 }
             }
 
-            return new UserResponse
+            var userResponse = new UserResponse
             {
                 Id = Guid.Parse(newUserId),
                 Email = request.Email,
                 Username = request.Username,
+                FirstName = request.FirstName,
+                LastName = request.LastName,
                 Role = request.Role,
                 IsEnabled = newUser.Enabled,
             };
+
+            // Publicar evento de usuário criado
+            await eventPublisher.PublishAsync(
+                new UserCreatedEvent
+                {
+                    UserId = userResponse.Id,
+                    Username = userResponse.Username,
+                    Email = userResponse.Email,
+                    FirstName = userResponse.FirstName,
+                    LastName = userResponse.LastName,
+                    Role = userResponse.Role,
+                    IsEnabled = userResponse.IsEnabled,
+                    Timestamp = DateTime.UtcNow,
+                }
+            );
+
+            return userResponse;
         });
     }
 
@@ -254,6 +275,20 @@ public class KeycloakService(
 
             var authenticatedUserId = userAuthenticated.GetUserId();
 
+            // Publicar evento de usuário atualizado
+            await eventPublisher.PublishAsync(
+                new UserUpdatedEvent
+                {
+                    UserId = userId,
+                    Email = request.Email,
+                    FirstName = request.FirstName,
+                    LastName = request.LastName,
+                    Role = request.Role,
+                    IsEnabled = request.IsEnabled,
+                    Timestamp = DateTime.UtcNow,
+                }
+            );
+
             return new UpdateUserResponse
             {
                 Message =
@@ -279,6 +314,12 @@ public class KeycloakService(
                 notifier.Handle(new Notification("Failed to disable user."));
                 return false;
             }
+
+            // Publicar evento de usuário deletado (soft delete)
+            await eventPublisher.PublishAsync(
+                new UserDeletedEvent { UserId = userId, Timestamp = DateTime.UtcNow }
+            );
+
             return true;
         });
     }

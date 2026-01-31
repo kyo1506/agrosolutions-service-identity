@@ -1,0 +1,369 @@
+# =============================================================================
+# AgroSolutions - Unified Docker Compose
+# =============================================================================
+# Este compose gerencia TODAS as três soluções na mesma máquina:
+# - Identity Service (porta 5001)
+# - Properties Service (porta 5002)  
+# - API Gateway (porta 5000)
+#
+# Infraestrutura compartilhada:
+# - Keycloak (porta 8080)
+# - RabbitMQ (porta 5672, UI 15672)
+# - PostgreSQL multi-database (porta 5432)
+# - Observability Stack (Prometheus 9090, Grafana 3000, Loki 3100, Tempo 3200)
+#
+# Uso: docker-compose -f docker-compose.unified.yml up -d
+# =============================================================================
+
+networks:
+  agrosolutions-network:
+    driver: bridge
+    name: agrosolutions-network
+
+# =============================================================================
+# 🗄️ DATABASES
+# =============================================================================
+services:
+  # PostgreSQL Centralizado - Múltiplos databases
+  postgres:
+    image: postgres:16-alpine
+    container_name: agrosolutions-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      # Cria 3 databases na inicialização
+      POSTGRES_MULTIPLE_DATABASES: keycloak,properties,outbox
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - agrosolutions-network
+    restart: unless-stopped
+
+# =============================================================================
+# 🔐 IDENTITY & AUTHENTICATION
+# =============================================================================
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.5.2
+    container_name: agrosolutions-keycloak
+    command: start-dev
+    environment:
+      KC_DB: postgres
+      KC_DB_URL_HOST: postgres
+      KC_DB_URL_DATABASE: keycloak
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: postgres
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: true
+      KC_METRICS_ENABLED: true
+      KC_HOSTNAME_STRICT: false
+      KC_HTTP_ENABLED: true
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+    networks:
+      - agrosolutions-network
+    restart: unless-stopped
+
+# =============================================================================
+# 📨 MESSAGE BROKER
+# =============================================================================
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: agrosolutions-rabbitmq
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit log_levels [{connection,error},{default,warning}]"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./infra/rabbitmq-definitions.json:/etc/rabbitmq/definitions.json:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - agrosolutions-network
+    restart: unless-stopped
+
+# =============================================================================
+# 📊 OBSERVABILITY STACK
+# =============================================================================
+  # OpenTelemetry Collector - Gateway centralizado
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: agrosolutions-otel-collector
+    command: ["--config=/etc/otel-collector-config.yml"]
+    volumes:
+      - ./infra/otel-collector-config.yml:/etc/otel-collector-config.yml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8889:8889"   # Prometheus metrics endpoint
+      - "13133:13133" # Health check
+    networks:
+      - agrosolutions-network
+    restart: unless-stopped
+
+  # Prometheus - Métricas
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: agrosolutions-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - agrosolutions-network
+    restart: unless-stopped
+
+  # Loki - Logs
+  loki:
+    image: grafana/loki:latest
+    container_name: agrosolutions-loki
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki_data:/loki
+    networks:
+      - agrosolutions-network
+    restart: unless-stopped
+
+  # Tempo - Traces
+  tempo:
+    image: grafana/tempo:latest
+    container_name: agrosolutions-tempo
+    command: ["-config.file=/etc/tempo-config.yml"]
+    volumes:
+      - ./infra/tempo-config.yml:/etc/tempo-config.yml:ro
+      - tempo_data:/tmp/tempo
+    ports:
+      - "3200:3200"   # Tempo HTTP
+      - "4318"        # OTLP HTTP (internal)
+    networks:
+      - agrosolutions-network
+    restart: unless-stopped
+
+  # Grafana - Dashboard unificado
+  grafana:
+    image: grafana/grafana:latest
+    container_name: agrosolutions-grafana
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
+    volumes:
+      - ./infra/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ./infra/grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
+      - ./infra/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    networks:
+      - agrosolutions-network
+    restart: unless-stopped
+
+# =============================================================================
+# 🚀 MICROSERVICES
+# =============================================================================
+  
+  # Identity Service (Auth + User Management)
+  identity-api:
+    build:
+      context: ./agrosolutions-service-identity
+      dockerfile: Dockerfile
+      args:
+        BUILD_DATE: "${BUILD_DATE:-2024-01-31T00:00:00Z}"
+        VERSION: "${VERSION:-1.0.0}"
+        REVISION: "${REVISION:-dev}"
+    container_name: identity-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      
+      # JWT
+      - Jwt__Authority=http://keycloak:8080/realms/agrosolutions
+      - Jwt__Audience=agrosolutions-api
+      
+      # Keycloak
+      - KeycloakConfiguration__BaseUrl=http://keycloak:8080
+      - KeycloakConfiguration__TokenEndpointPath=/realms/master/protocol/openid-connect/token
+      - KeycloakConfiguration__UsersEndpointPath=/admin/realms/agrosolutions/users
+      - KeycloakConfiguration__TargetRealm=agrosolutions
+      - KeycloakConfiguration__AdminClientId=agrosolutions-api-service-account
+      - KeycloakConfiguration__AdminClientSecret=7LF1zdJRb0KppOY2LNrmokWZvnvH0nXX
+      - KeycloakConfiguration__ApiClientId=agrosolutions-api
+      - KeycloakConfiguration__ApiClientSecret=mev3cV6wKPvu42AItT1dDWhxjHGKHhJe
+      
+      # RabbitMQ
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
+      
+      # Outbox Database
+      - ConnectionStrings__OutboxDb=Host=postgres;Database=outbox;Username=postgres;Password=postgres
+      
+      # OpenTelemetry
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=identity-api
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=development,service.version=1.0.0
+    ports:
+      - "5001:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - agrosolutions-network
+    restart: unless-stopped
+
+  # Properties Service (Domain Management)
+  properties-api:
+    build:
+      context: ./agrosolutions-service-properties
+      dockerfile: Dockerfile
+      args:
+        BUILD_DATE: "${BUILD_DATE:-2024-01-31T00:00:00Z}"
+        VERSION: "${VERSION:-1.0.0}"
+        REVISION: "${REVISION:-dev}"
+    container_name: properties-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      
+      # Database
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=properties;Username=postgres;Password=postgres
+      
+      # JWT
+      - Jwt__Authority=http://keycloak:8080/realms/agrosolutions
+      - Jwt__Audience=agrosolutions-api
+      
+      # RabbitMQ
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
+      
+      # OpenTelemetry
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=properties-api
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=development,service.version=1.0.0
+    ports:
+      - "5002:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - agrosolutions-network
+    restart: unless-stopped
+
+  # API Gateway (Entry Point)
+  api-gateway:
+    build:
+      context: ./agrosolutions-api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      
+      # JWT
+      - Jwt__Authority=http://keycloak:8080/realms/agrosolutions
+      - Jwt__Audience=agrosolutions-api
+      
+      # Downstream Services
+      - DownstreamServices__Identity=http://identity-api:8080
+      - DownstreamServices__Properties=http://properties-api:8080
+      
+      # Rate Limiting
+      - RateLimiting__EnableRateLimiting=true
+      - RateLimiting__DefaultLimit=100
+      - RateLimiting__DefaultPeriodInSeconds=60
+    ports:
+      - "5000:80"
+    depends_on:
+      - identity-api
+      - properties-api
+      - keycloak
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:80/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    networks:
+      - agrosolutions-network
+    restart: unless-stopped
+
+# =============================================================================
+# 💾 VOLUMES
+# =============================================================================
+volumes:
+  postgres_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  loki_data:
+    driver: local
+  tempo_data:
+    driver: local
+  grafana_data:
+    driver: local

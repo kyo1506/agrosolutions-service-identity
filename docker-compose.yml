@@ -52,7 +52,27 @@ services:
     networks:
       - agrosolutions-network
 
-  # 📊 Observability Stack
+  # � RabbitMQ (Message Broker)
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - agrosolutions-network
+
+  # �📊 Observability Stack
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
@@ -163,6 +183,11 @@ services:
       - OTEL_TRACES_EXPORTER=otlp
       - OTEL_METRICS_EXPORTER=otlp
       - OTEL_LOGS_EXPORTER=otlp
+
+      # RabbitMQ Configuration
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"]
@@ -182,4 +207,6 @@ services:
 
 volumes:
   keycloak_db_data:
+    driver: local
+  rabbitmq_data:
     driver: local

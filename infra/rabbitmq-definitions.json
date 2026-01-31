@@ -1,0 +1,102 @@
+{
+  "rabbit_version": "4.0.5",
+  "users": [
+    {
+      "name": "guest",
+      "password_hash": "bR6b+W18hI8MR6l7s6qnVY76CnJ5m3k3tRdqKSGQZ0GgPCy9",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": ["administrator"]
+    }
+  ],
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "guest",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "parameters": [],
+  "global_parameters": [
+    {
+      "name": "cluster_name",
+      "value": "agrosolutions"
+    }
+  ],
+  "policies": [
+    {
+      "vhost": "/",
+      "name": "ha-all",
+      "pattern": ".*",
+      "apply-to": "all",
+      "definition": {
+        "ha-mode": "all",
+        "ha-sync-mode": "automatic"
+      },
+      "priority": 0
+    }
+  ],
+  "queues": [
+    {
+      "name": "identity-events",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
+    },
+    {
+      "name": "identity-events-dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "produtor-sync-queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
+    },
+    {
+      "name": "status-changed-queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "identity-events-dead-letter-exchange",
+      "vhost": "/",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "identity-events-dead-letter-exchange",
+      "vhost": "/",
+      "destination": "identity-events-dlq",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {}
+    }
+  ]
+}
