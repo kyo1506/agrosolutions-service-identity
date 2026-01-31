@@ -17,8 +17,8 @@ public static class ScalarConfig
             webApp.MapScalarApiReference(options =>
             {
                 options
-                    .WithTitle("FCG Identity Service API")
-                    .WithTheme(ScalarTheme.BluePlanet)
+                    .WithTitle("AgroSolutions Identity Service API")
+                    .WithTheme(ScalarTheme.Moon)
                     .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
             });
         }

@@ -12,7 +12,7 @@ public static class OpenTelemetryConfiguration
         IWebHostEnvironment environment
     )
     {
-        var serviceName = configuration["OTEL_SERVICE_NAME"] ?? "fcg-identity-api";
+        var serviceName = configuration["OTEL_SERVICE_NAME"] ?? "agrosolutions-identity-api";
         var serviceVersion =
             configuration["OTEL_RESOURCE_ATTRIBUTES"]
                 ?.Split(',')

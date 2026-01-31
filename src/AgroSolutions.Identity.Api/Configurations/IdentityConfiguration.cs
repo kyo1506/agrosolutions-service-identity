@@ -37,8 +37,8 @@ public static class IdentityConfig
                     // Aceita múltiplos issuers (localhost e keycloak container)
                     ValidIssuers =
                     [
-                        configuration["Jwt:Authority"], // http://keycloak:8080/realms/fiap-cloud-games
-                        configuration["Jwt:Authority"]?.Replace("keycloak:8080", "localhost:8080"), // http://localhost:8080/realms/fiap-cloud-games
+                        configuration["Jwt:Authority"], // http://keycloak:8080/realms/agrosolutions
+                        configuration["Jwt:Authority"]?.Replace("keycloak:8080", "localhost:8080"), // http://localhost:8080/realms/agrosolutions
                     ],
                     ValidateAudience = true,
                     ValidAudiences = [configuration["Jwt:Audience"]],

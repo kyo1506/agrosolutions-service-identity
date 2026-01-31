@@ -15,8 +15,8 @@ COPY *.sln .
 COPY src/ ./src/
 
 # Restore e publish em etapas separadas
-RUN dotnet restore "Fcg.Identity.sln" && \
-    dotnet publish src/Fcg.Identity.Api/Fcg.Identity.Api.csproj \
+RUN dotnet restore "AgroSolutions.Identity.sln" && \
+    dotnet publish src/AgroSolutions.Identity.Api/AgroSolutions.Identity.Api.csproj \
     -c Release \
     -o /app/publish \
     --no-restore
@@ -25,12 +25,13 @@ RUN dotnet restore "Fcg.Identity.sln" && \
 FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_VERSION}-alpine AS final
 
 # Adicionar labels para metadata
-LABEL maintainer="FIAP Cloud Games Team" \
-      org.opencontainers.image.title="FCG Identity API" \
-      org.opencontainers.image.description="Identity and authentication service for FIAP Cloud Games" \
+LABEL maintainer="AgroSolutions Team" \
+      org.opencontainers.image.title="AgroSolutions Identity API" \
+      org.opencontainers.image.description="Identity and authentication service for AgroSolutions" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
-      org.opencontainers.image.revision="${REVISION}"
+      org.opencontainers.image.revision="${REVISION}" \
+      keycloak.version="26.5.2"
 
 # Instalar dependências de segurança e runtime
 RUN apk add --no-cache \
@@ -66,4 +67,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
 # Usar exec form para sinais corretos
-ENTRYPOINT ["dotnet", "Fcg.Identity.Api.dll"]
+ENTRYPOINT ["dotnet", "AgroSolutions.Identity.Api.dll"]

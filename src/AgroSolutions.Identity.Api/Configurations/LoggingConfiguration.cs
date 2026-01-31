@@ -10,7 +10,7 @@ public static class LoggingConfiguration
     )
     {
         var otlpEndpoint = configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
-        var serviceName = configuration["OTEL_SERVICE_NAME"] ?? "fcg-identity-api";
+        var serviceName = configuration["OTEL_SERVICE_NAME"] ?? "agrosolutions-identity-api";
         var serviceVersion =
             configuration["OTEL_RESOURCE_ATTRIBUTES"]
                 ?.Split(',')

@@ -5,7 +5,7 @@ networks:
 services:
   # 🗄️ Keycloak Database
   keycloak-db:
-    image: postgres:13-alpine
+    image: postgres:16-alpine
     container_name: keycloak-db
     environment:
       POSTGRES_DB: keycloak
@@ -23,7 +23,7 @@ services:
 
   # 🔐 Keycloak (Identity Provider)
   keycloak:
-    image: quay.io/keycloak/keycloak:22.0
+    image: quay.io/keycloak/keycloak:26.5.2
     container_name: keycloak
     command: start-dev
     environment:
@@ -126,24 +126,24 @@ services:
       - ASPNETCORE_URLS=http://+:8080
 
       # JWT Configuration
-      - Jwt__Authority=http://keycloak:8080/realms/fiap-cloud-games
-      - Jwt__Audience=fcg-api
+      - Jwt__Authority=http://keycloak:8080/realms/agrosolutions
+      - Jwt__Audience=agrosolutions-api
 
       # Keycloak Integration
       - KeycloakConfiguration__BaseUrl=http://keycloak:8080
       - KeycloakConfiguration__TokenEndpointPath=/realms/master/protocol/openid-connect/token
-      - KeycloakConfiguration__UsersEndpointPath=/admin/realms/fiap-cloud-games/users
-      - KeycloakConfiguration__TargetRealm=fiap-cloud-games
+      - KeycloakConfiguration__UsersEndpointPath=/admin/realms/agrosolutions/users
+      - KeycloakConfiguration__TargetRealm=agrosolutions
       - KeycloakConfiguration__Audience=http://keycloak:8080
-      - KeycloakConfiguration__AdminClientId=fcg-api-service-account
+      - KeycloakConfiguration__AdminClientId=agrosolutions-api-service-account
       - KeycloakConfiguration__AdminClientSecret=7LF1zdJRb0KppOY2LNrmokWZvnvH0nXX
-      - KeycloakConfiguration__ApiClientId=fcg-api
+      - KeycloakConfiguration__ApiClientId=agrosolutions-api
       - KeycloakConfiguration__ApiClientSecret=mev3cV6wKPvu42AItT1dDWhxjHGKHhJe
 
       # OpenTelemetry Configuration
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
-      - OTEL_SERVICE_NAME=fcg-identity-api
+      - OTEL_SERVICE_NAME=agrosolutions-identity-api
       - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=development,service.version=1.0.0
       - OTEL_TRACES_EXPORTER=otlp
       - OTEL_METRICS_EXPORTER=otlp

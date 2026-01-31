@@ -1,5 +1,5 @@
-using AgroSolutions.Identity.Domain.Interfaces;
 using System.Security.Claims;
+using AgroSolutions.Identity.Domain.Interfaces;
 
 namespace AgroSolutions.Identity.Api.Extensions;
 

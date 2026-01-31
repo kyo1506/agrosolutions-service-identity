@@ -1,9 +1,9 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
 using Serilog.Events;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace AgroSolutions.Identity.Api.Configurations;
 
