@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AgroSolutions.Identity.Api/AgroSolutions.Identity.Api.csproj" />
+    <Project Path="src/AgroSolutions.Identity.Domain/AgroSolutions.Identity.Domain.csproj" />
+    <Project Path="src/AgroSolutions.Identity.Infrastructure/AgroSolutions.Identity.Infrastructure.csproj" />
+    <Project Path="src/AgroSolutions.Identity.Shared/AgroSolutions.Identity.Shared.csproj" />
+    <Project Path="src/AgroSolutions.Identity.Test/AgroSolutions.Identity.Test.csproj" />
+  </Folder>
+</Solution>
