@@ -1,12 +1,11 @@
-using System.Globalization;
 using AgroSolutions.Identity.Api.Configurations;
 using AgroSolutions.Identity.Api.Middlewares;
 using Asp.Versioning.ApiExplorer;
-using Fcg.Identity.Api.Configurations;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Logging;
 using Serilog;
+using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
 

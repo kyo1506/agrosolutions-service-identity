@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Fcg.Identity.Shared.Models.Requests;
+namespace AgroSolutions.Identity.Shared.Models.Requests;
 
 /// <summary>
 /// Request model for permission validation.

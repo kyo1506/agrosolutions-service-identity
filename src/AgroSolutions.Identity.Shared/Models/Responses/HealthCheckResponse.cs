@@ -1,6 +1,6 @@
 using System;
 
-namespace Fcg.Identity.Shared.Models.Responses;
+namespace AgroSolutions.Identity.Shared.Models.Responses;
 
 /// <summary>
 /// Health check response from the identity service.

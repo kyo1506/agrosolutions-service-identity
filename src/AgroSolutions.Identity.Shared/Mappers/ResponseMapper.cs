@@ -1,6 +1,6 @@
-using Fcg.Identity.Shared.Models.Responses;
+using AgroSolutions.Identity.Shared.Models.Responses;
 
-namespace Fcg.Identity.Shared.Mappers;
+namespace AgroSolutions.Identity.Shared.Mappers;
 
 public static class ResponseMapper
 {

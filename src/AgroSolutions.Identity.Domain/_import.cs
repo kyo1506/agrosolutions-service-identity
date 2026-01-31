@@ -1,2 +1,2 @@
-global using Fcg.Identity.Domain.Interfaces;
-global using Fcg.Identity.Domain.Notifications;
+global using AgroSolutions.Identity.Domain.Interfaces;
+global using AgroSolutions.Identity.Domain.Notifications;

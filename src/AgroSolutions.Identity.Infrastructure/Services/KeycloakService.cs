@@ -2,14 +2,14 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AgroSolutions.Identity.Domain.Interfaces;
-using Fcg.Identity.Domain.Notifications;
-using Fcg.Identity.Infrastructure.Extensions;
-using Fcg.Identity.Shared.Mappers;
-using Fcg.Identity.Shared.Models.Requests;
-using Fcg.Identity.Shared.Models.Responses;
+using AgroSolutions.Identity.Infrastructure.Extensions;
+using AgroSolutions.Identity.Shared.Mappers;
+using AgroSolutions.Identity.Shared.Models.Requests;
+using AgroSolutions.Identity.Shared.Models.Responses;
+using AgroSolutions.Identity.Domain.Notifications;
 using Microsoft.Extensions.Options;
 
-namespace Fcg.Identity.Infrastructure.Services;
+namespace AgroSolutions.Identity.Infrastructure.Services;
 
 public class KeycloakService(
     HttpClient httpClient,

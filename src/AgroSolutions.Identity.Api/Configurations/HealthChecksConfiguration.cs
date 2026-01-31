@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-namespace Fcg.Identity.Api.Configurations;
+namespace AgroSolutions.Identity.Api.Configurations;
 
 public static class HealthChecksConfig
 {

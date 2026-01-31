@@ -1,3 +1,9 @@
+using AgroSolutions.Identity.Api.V1.Controllers;
+using AgroSolutions.Identity.Domain.Interfaces;
+using AgroSolutions.Identity.Shared.Models.Requests;
+using AgroSolutions.Identity.Shared.Models.Responses;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Moq;
 
 namespace AgroSolutions.Identity.Test;

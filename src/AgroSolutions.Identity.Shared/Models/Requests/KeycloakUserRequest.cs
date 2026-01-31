@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Fcg.Identity.Shared.Models.Requests;
+namespace AgroSolutions.Identity.Shared.Models.Requests;
 
 public class KeycloakUserRequest
 {

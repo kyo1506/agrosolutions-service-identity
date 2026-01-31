@@ -1,5 +1,3 @@
-using AgroSolutions.Identity.Domain.Interfaces;
-
 namespace AgroSolutions.Identity.Domain.Notifications;
 
 public class Notifier : INotifier

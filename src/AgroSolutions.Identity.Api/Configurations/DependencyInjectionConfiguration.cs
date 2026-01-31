@@ -1,11 +1,11 @@
 using AgroSolutions.Identity.Api.Extensions;
 using AgroSolutions.Identity.Domain.Interfaces;
 using AgroSolutions.Identity.Domain.Notifications;
-using Fcg.Identity.Infrastructure.Extensions;
-using Fcg.Identity.Infrastructure.Services;
+using AgroSolutions.Identity.Infrastructure.Extensions;
+using AgroSolutions.Identity.Infrastructure.Services;
 using Microsoft.Extensions.Options;
 
-namespace Fcg.Identity.Api.Configurations;
+namespace AgroSolutions.Identity.Api.Configurations;
 
 public static class DependencyInjectionConfiguration
 {

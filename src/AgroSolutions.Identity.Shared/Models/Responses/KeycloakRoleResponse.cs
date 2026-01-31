@@ -1,6 +1,4 @@
-using System.Text.Json.Serialization;
-
-namespace Fcg.Identity.Shared.Models.Responses;
+namespace AgroSolutions.Identity.Shared.Models.Responses;
 
 public class KeycloakRoleResponse
 {

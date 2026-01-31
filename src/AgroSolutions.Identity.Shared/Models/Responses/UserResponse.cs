@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Fcg.Identity.Shared.Models.Responses;
+namespace AgroSolutions.Identity.Shared.Models.Responses;
 
 public class UserResponse
 {

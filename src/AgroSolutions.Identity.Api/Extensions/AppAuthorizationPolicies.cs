@@ -1,4 +1,4 @@
-using Fcg.Identity.Shared.Constants;
+using AgroSolutions.Identity.Shared.Constants;
 
 namespace AgroSolutions.Identity.Api.Extensions;
 

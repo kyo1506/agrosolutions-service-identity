@@ -1,6 +1,6 @@
 using System;
 
-namespace Fcg.Identity.Shared.Constants;
+namespace AgroSolutions.Identity.Shared.Constants;
 
 /// <summary>
 /// Constantes para as permissões/scopes do sistema.

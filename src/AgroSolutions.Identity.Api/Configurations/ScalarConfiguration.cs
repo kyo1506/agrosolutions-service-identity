@@ -1,6 +1,6 @@
 using Scalar.AspNetCore;
 
-namespace Fcg.Identity.Api.Configurations;
+namespace AgroSolutions.Identity.Api.Configurations;
 
 public static class ScalarConfig
 {

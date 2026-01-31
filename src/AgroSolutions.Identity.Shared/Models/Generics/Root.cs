@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Fcg.Identity.Shared.Models.Generics;
+namespace AgroSolutions.Identity.Shared.Models.Generics;
 
 public class Root<T>
     where T : class

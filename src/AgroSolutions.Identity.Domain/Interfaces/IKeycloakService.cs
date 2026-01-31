@@ -1,5 +1,5 @@
-using Fcg.Identity.Shared.Models.Requests;
-using Fcg.Identity.Shared.Models.Responses;
+using AgroSolutions.Identity.Shared.Models.Requests;
+using AgroSolutions.Identity.Shared.Models.Responses;
 
 namespace AgroSolutions.Identity.Domain.Interfaces;
 

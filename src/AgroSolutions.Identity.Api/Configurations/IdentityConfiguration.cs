@@ -1,8 +1,7 @@
-using Fcg.Identity.Api.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
-namespace Fcg.Identity.Api.Configurations;
+namespace AgroSolutions.Identity.Api.Configurations;
 
 public static class IdentityConfig
 {

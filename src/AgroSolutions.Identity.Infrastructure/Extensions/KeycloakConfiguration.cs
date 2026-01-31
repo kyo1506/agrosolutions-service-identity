@@ -1,4 +1,4 @@
-namespace Fcg.Identity.Infrastructure.Extensions;
+namespace AgroSolutions.Identity.Infrastructure.Extensions;
 
 public class KeycloakConfiguration
 {

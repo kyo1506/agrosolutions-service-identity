@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
-using Fcg.Identity.Shared.ValidationAttributes;
+using AgroSolutions.Identity.Shared.ValidationAttributes;
 
-namespace Fcg.Identity.Shared.Models.Requests;
+namespace AgroSolutions.Identity.Shared.Models.Requests;
 
 public class LoginRequest
 {
