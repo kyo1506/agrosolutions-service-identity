@@ -1,3 +1,4 @@
+using System.Globalization;
 using AgroSolutions.Identity.Api.Configurations;
 using AgroSolutions.Identity.Api.Middlewares;
 using Asp.Versioning.ApiExplorer;
@@ -5,7 +6,6 @@ using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Logging;
 using Serilog;
-using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,7 +23,7 @@ builder.Services.AddHealthChecksConfig();
 builder.Services.AddScalarConfiguration();
 builder.Services.AddLoggingConfiguration(builder.Configuration);
 builder.Services.AddOpenTelemetryConfiguration(builder.Configuration, builder.Environment);
-builder.Services.ResolveDependencies();
+builder.Services.ResolveAwsDependencies(builder.Configuration);
 builder.Services.AddLocalization();
 
 builder.Host.UseSerilog();

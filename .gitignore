@@ -11,6 +11,18 @@ x86/
 bld/
 [Bb]in/
 [Oo]bj/
+**/bin/
+**/obj/
+**/Debug/
+**/Release/
+
+# BuildHost directories
+**/BuildHost-net472/
+**/BuildHost-netcore/
+
+# Entity Framework Migrations (manter apenas se necessário)
+# Descomente para ignorar migrations geradas automaticamente:
+# **/Migrations/
 
 # Visual Studio cache/options directory
 .vs/
@@ -131,3 +143,16 @@ ehthumbs_vista.db
 
 # macOS
 .DS_Store
+
+### Environment & Secrets ###
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# AWS Credentials
+.aws/
+
+# Secrets
+secrets.json
+secrets.*.json

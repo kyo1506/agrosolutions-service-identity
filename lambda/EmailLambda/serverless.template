@@ -1,0 +1,112 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Transform": "AWS::Serverless-2016-10-31",
+  "Description": "Lambda function para processar e-mails via SQS + SES",
+  
+  "Parameters": {
+    "Environment": {
+      "Type": "String",
+      "Default": "Development",
+      "AllowedValues": ["Development", "Staging", "Production"],
+      "Description": "Ambiente de deploy"
+    },
+    "FromEmail": {
+      "Type": "String",
+      "Default": "noreply@agrosolutions.com.br",
+      "Description": "E-mail remetente (deve estar verificado no SES)"
+    },
+    "FromName": {
+      "Type": "String",
+      "Default": "AgroSolutions",
+      "Description": "Nome do remetente"
+    }
+  },
+  
+  "Resources": {
+    "EmailQueue": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "QueueName": "email-queue",
+        "VisibilityTimeout": 300,
+        "MessageRetentionPeriod": 345600,
+        "ReceiveMessageWaitTimeSeconds": 20,
+        "RedrivePolicy": {
+          "deadLetterTargetArn": { "Fn::GetAtt": ["EmailDLQ", "Arn"] },
+          "maxReceiveCount": 3
+        }
+      }
+    },
+    
+    "EmailDLQ": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "QueueName": "email-queue-dlq",
+        "MessageRetentionPeriod": 1209600
+      }
+    },
+    
+    "EmailLambdaFunction": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "FunctionName": "AgroSolutions-EmailProcessor",
+        "Handler": "EmailLambda::AgroSolutions.EmailLambda.Function::FunctionHandler",
+        "Runtime": "dotnet8",
+        "CodeUri": "",
+        "Description": "Processa eventos de e-mail da fila SQS e envia via SES",
+        "MemorySize": 512,
+        "Timeout": 300,
+        "Environment": {
+          "Variables": {
+            "ENVIRONMENT": { "Ref": "Environment" },
+            "FROM_EMAIL": { "Ref": "FromEmail" },
+            "FROM_NAME": { "Ref": "FromName" }
+          }
+        },
+        "Policies": [
+          "AWSLambdaSQSQueueExecutionRole",
+          {
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "ses:SendEmail",
+                  "ses:SendRawEmail",
+                  "ses:SendTemplatedEmail"
+                ],
+                "Resource": "*"
+              }
+            ]
+          }
+        ],
+        "Events": {
+          "EmailQueueEvent": {
+            "Type": "SQS",
+            "Properties": {
+              "Queue": { "Fn::GetAtt": ["EmailQueue", "Arn"] },
+              "BatchSize": 10,
+              "MaximumBatchingWindowInSeconds": 5
+            }
+          }
+        }
+      }
+    }
+  },
+  
+  "Outputs": {
+    "EmailQueueUrl": {
+      "Description": "URL da fila de e-mails",
+      "Value": { "Ref": "EmailQueue" },
+      "Export": { "Name": "EmailQueueUrl" }
+    },
+    "EmailQueueArn": {
+      "Description": "ARN da fila de e-mails",
+      "Value": { "Fn::GetAtt": ["EmailQueue", "Arn"] },
+      "Export": { "Name": "EmailQueueArn" }
+    },
+    "EmailLambdaFunctionArn": {
+      "Description": "ARN da Lambda de e-mails",
+      "Value": { "Fn::GetAtt": ["EmailLambdaFunction", "Arn"] },
+      "Export": { "Name": "EmailLambdaArn" }
+    }
+  }
+}

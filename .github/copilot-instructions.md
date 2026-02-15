@@ -13,7 +13,9 @@ This is an **ASP.NET Core Web API (.NET 10.0)** that serves as an authentication
 ## Critical Patterns
 
 ### Response Wrapper Pattern
+
 All API responses use `Root<T>` wrapper ([Root.cs](../src/AgroSolutions.Identity.Shared/Models/Generics/Root.cs)):
+
 ```csharp
 public class Root<T> {
     public int StatusCode { get; set; }
@@ -22,18 +24,24 @@ public class Root<T> {
     public IEnumerable<string>? Errors { get; set; }
 }
 ```
+
 Controllers inherit from [MainController](../src/AgroSolutions.Identity.Api/Controllers/MainController.cs) which provides `CustomResponse<T>()` methods.
 
 ### Notification Pattern for Domain Validation
+
 Use `INotifier` ([Notifier.cs](../src/AgroSolutions.Identity.Domain/Notifications/Notifier.cs)) to collect validation errors rather than throwing exceptions:
+
 ```csharp
 notifier.Handle(new Notification("Error message"));
 return CustomResponse<T>(statusCode: HttpStatusCode.BadRequest);
 ```
+
 Check `notifier.HasNotification()` before returning success responses.
 
 ### Permission-Based Authorization
+
 The system uses **JWT scope-based permissions** ([Permissions.cs](../src/AgroSolutions.Identity.Shared/Constants/Permissions.cs)). Three core permissions:
+
 - `users:read` - Read user information
 - `users:manage` - Full user management
 - `profiles:manage` - Profile management
@@ -41,7 +49,9 @@ The system uses **JWT scope-based permissions** ([Permissions.cs](../src/AgroSol
 Authorization policies are configured in [IdentityConfiguration.cs](../src/AgroSolutions.Identity.Api/Configurations/IdentityConfiguration.cs) using scope assertions from JWT tokens issued by Keycloak.
 
 ### Keycloak Integration
+
 [KeycloakService](../src/AgroSolutions.Identity.Infrastructure/Services/KeycloakService.cs) uses:
+
 - **Admin token caching** (static `_adminAccessToken` with expiration check)
 - **HttpClient with Polly resilience policies** configured in [DependencyInjectionConfiguration.cs](../src/AgroSolutions.Identity.Api/Configurations/DependencyInjectionConfiguration.cs)
 - **Dual issuer validation** (supports both `localhost:8080` and `keycloak:8080` in [IdentityConfiguration.cs](../src/AgroSolutions.Identity.Api/Configurations/IdentityConfiguration.cs#L39-L43))
@@ -49,37 +59,47 @@ Authorization policies are configured in [IdentityConfiguration.cs](../src/AgroS
 ## Resilience & Observability
 
 ### Polly Policies
+
 [ResilienceConfiguration.cs](../src/AgroSolutions.Identity.Api/Configurations/ResilienceConfiguration.cs) implements:
+
 - Circuit Breaker (5 failures, 30s break)
 - Retry with exponential backoff (3 attempts)
 - Timeout (30s)
 - Bulkhead (10 parallel, 20 queued)
 
 ### OpenTelemetry Stack
+
 Full observability configured in [OpenTelemetryConfiguration.cs](../src/AgroSolutions.Identity.Api/Configurations/OpenTelemetryConfiguration.cs):
+
 - Traces → Tempo (OTLP via otel-collector)
 - Logs → Loki (via Serilog OpenTelemetry sink)
 - Metrics → Prometheus
 
 [LogContextMiddleware](../src/AgroSolutions.Identity.Api/Middlewares/LogContextMiddleware.cs) enriches logs with:
+
 - RequestId, CorrelationId (Kong-aware)
 - UserId, Username, SessionId (from JWT)
 
 ## Development Workflows
 
 ### Local Development with Docker Compose
+
 ```bash
 docker-compose up -d  # Starts Keycloak, Postgres, observability stack
 ```
+
 Access points:
+
 - Identity API: http://localhost:5001
 - Keycloak Admin: http://localhost:8080 (admin/admin)
 - Grafana: http://localhost:3000
 - Prometheus: http://localhost:9090
 
 ### Configuration
+
 Environment-specific: `appsettings.{Environment}.json`
 Required Keycloak settings ([appsettings.json](../src/AgroSolutions.Identity.Api/appsettings.json)):
+
 ```json
 "KeycloakConfiguration": {
   "BaseUrl": "http://keycloak:8080",
@@ -90,17 +110,21 @@ Required Keycloak settings ([appsettings.json](../src/AgroSolutions.Identity.Api
 ```
 
 ### Running Tests
+
 ```bash
 dotnet test src/AgroSolutions.Identity.Test/AgroSolutions.Identity.Test.csproj
 ```
+
 Tests use Moq for dependencies. See [AuthTest.cs](../src/AgroSolutions.Identity.Test/AuthTest.cs) for controller test patterns.
 
 ### Building & Running
+
 ```bash
 dotnet restore
 dotnet build
 dotnet run --project src/AgroSolutions.Identity.Api
 ```
+
 Docker build uses multi-stage Alpine images ([Dockerfile](../Dockerfile)).
 
 ## Conventions
