@@ -50,7 +50,6 @@ public class OutboxProcessorJob(
         var outboxContext = scope.ServiceProvider.GetRequiredService<OutboxDbContext>();
         var publishEndpoint = scope.ServiceProvider.GetRequiredService<IPublishEndpoint>();
 
-        // Buscar mensagens pendentes ou que falharam mas ainda têm tentativas
         var pendingMessages = await outboxContext
             .OutboxMessages.Where(m =>
                 (
@@ -95,7 +94,6 @@ public class OutboxProcessorJob(
         CancellationToken cancellationToken
     )
     {
-        // Verificar se deve aguardar antes de tentar novamente (exponential backoff)
         if (message.RetryCount > 0)
         {
             var delaySeconds = Math.Pow(2, message.RetryCount - 1) * 5; // 5s, 10s, 20s, 40s, 80s
@@ -125,7 +123,6 @@ public class OutboxProcessorJob(
                 MaxRetryCount
             );
 
-            // Desserializar e publicar o evento
             var eventType =
                 Type.GetType(message.EventType)
                 ?? throw new InvalidOperationException(
@@ -138,7 +135,6 @@ public class OutboxProcessorJob(
                 );
             await publishEndpoint.Publish(@event, eventType, cancellationToken);
 
-            // Sucesso - marcar como processado
             message.Status = OutboxMessageStatus.Processed;
             message.ProcessedAt = DateTime.UtcNow;
             message.ErrorMessage = null;

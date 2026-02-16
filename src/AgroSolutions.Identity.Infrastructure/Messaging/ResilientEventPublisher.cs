@@ -5,7 +5,6 @@ using AgroSolutions.Identity.Domain.Entities;
 using AgroSolutions.Identity.Domain.Interfaces;
 using AgroSolutions.Identity.Infrastructure.Data;
 using MassTransit;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.CircuitBreaker;
@@ -42,7 +41,6 @@ public class ResilientEventPublisher : IEventPublisher
         _logger = logger;
         _activitySource = new ActivitySource("AgroSolutions.Identity.Messaging");
 
-        // Configurar Circuit Breaker
         _circuitBreakerPolicy = Policy
             .Handle<Exception>()
             .CircuitBreakerAsync(
@@ -66,7 +64,6 @@ public class ResilientEventPublisher : IEventPublisher
                 }
             );
 
-        // Configurar métricas OpenTelemetry
         _eventsPublishedCounter = meter.CreateCounter<long>(
             "events.published",
             description: "Total number of events successfully published"
@@ -95,7 +92,6 @@ public class ResilientEventPublisher : IEventPublisher
 
         try
         {
-            // Passo 1: Salvar no Outbox (transacional)
             var outboxMessage = new OutboxMessage
             {
                 Id = Guid.NewGuid(),
@@ -115,7 +111,6 @@ public class ResilientEventPublisher : IEventPublisher
                 outboxMessage.Id
             );
 
-            // Passo 2: Tentar publicar imediatamente com Circuit Breaker
             await _circuitBreakerPolicy.ExecuteAsync(async () =>
             {
                 await _publishEndpoint.Publish(@event, cancellationToken);
@@ -134,7 +129,6 @@ public class ResilientEventPublisher : IEventPublisher
 
             stopwatch.Stop();
 
-            // Registrar métricas de sucesso
             _eventsPublishedCounter.Add(
                 1,
                 new KeyValuePair<string, object?>("event.type", eventType)
@@ -163,8 +157,6 @@ public class ResilientEventPublisher : IEventPublisher
             );
 
             activity?.SetStatus(ActivityStatusCode.Error, "Circuit breaker open");
-
-            // Evento já está no outbox, será processado pelo background worker
         }
         catch (Exception ex)
         {
@@ -184,7 +176,6 @@ public class ResilientEventPublisher : IEventPublisher
 
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
 
-            // Evento permanece no outbox para retry posterior
             throw;
         }
     }

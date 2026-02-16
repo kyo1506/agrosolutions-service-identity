@@ -25,7 +25,7 @@ public class Function
     {
         _sesClient = new AmazonSimpleEmailServiceClient();
         _fromEmail =
-            Environment.GetEnvironmentVariable("FROM_EMAIL") ?? "noreply@agrosolutions.com.br";
+            Environment.GetEnvironmentVariable("FROM_EMAIL") ?? "vinicius_pinheiro02@hotmail.com";
         _fromName = Environment.GetEnvironmentVariable("FROM_NAME") ?? "AgroSolutions";
     }
 

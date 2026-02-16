@@ -1,6 +1,6 @@
 ARG DOTNET_VERSION=10.0
 
-# Build stage
+# Build stage  
 FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}-alpine AS build
 
 # Definir argumentos de build para metadata
@@ -10,16 +10,13 @@ ARG REVISION
 
 WORKDIR /src
 
-# Copiar solution e código fonte
-COPY *.sln .
-COPY src/ ./src/
+# Copiar todos os arquivos do projeto
+COPY . .
 
-# Restore e publish em etapas separadas
-RUN dotnet restore "AgroSolutions.Identity.sln" && \
-    dotnet publish src/AgroSolutions.Identity.Api/AgroSolutions.Identity.Api.csproj \
-    -c Release \
-    -o /app/publish \
-    --no-restore
+# Restore e Build
+RUN dotnet restore src/AgroSolutions.Identity.Api/AgroSolutions.Identity.Api.csproj
+RUN dotnet build src/AgroSolutions.Identity.Api/AgroSolutions.Identity.Api.csproj -c Release --no-restore
+RUN dotnet publish src/AgroSolutions.Identity.Api/AgroSolutions.Identity.Api.csproj -c Release -o /app/publish --no-build
 
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_VERSION}-alpine AS final

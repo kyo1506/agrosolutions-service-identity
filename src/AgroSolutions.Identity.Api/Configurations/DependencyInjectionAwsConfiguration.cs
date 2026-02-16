@@ -71,6 +71,9 @@ public static class DependencyInjectionAwsConfiguration
         // Background job para processar outbox
         services.AddHostedService<OutboxProcessorJob>();
 
+        // Auto-migrate OutboxDb at startup
+        services.AddHostedService<OutboxDbMigrationService>();
+
         // MassTransit + Amazon SQS
         services.AddMassTransit(x =>
         {
@@ -86,7 +89,6 @@ public static class DependencyInjectionAwsConfiguration
                             // Credenciais configuram via variáveis de ambiente:
                             // - AWS_ACCESS_KEY_ID
                             // - AWS_SECRET_ACCESS_KEY
-                            // - AWS_SESSION_TOKEN (opcional, para temporary credentials)
                         }
                     );
 

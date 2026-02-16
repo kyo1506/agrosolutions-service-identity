@@ -12,7 +12,7 @@
     },
     "FromEmail": {
       "Type": "String",
-      "Default": "noreply@agrosolutions.com.br",
+      "Default": "vinicius_pinheiro02@hotmail.com",
       "Description": "E-mail remetente (deve estar verificado no SES)"
     },
     "FromName": {

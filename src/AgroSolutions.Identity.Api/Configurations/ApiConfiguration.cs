@@ -37,6 +37,9 @@ public static class ApiConfiguration
                 options.SubstituteApiVersionInUrl = true;
             });
 
+        services.AddExceptionHandler<Extensions.GlobalExceptionHandler>();
+        services.AddProblemDetails();
+
         services.Configure<ApiBehaviorOptions>(options =>
         {
             options.SuppressModelStateInvalidFilter = true;

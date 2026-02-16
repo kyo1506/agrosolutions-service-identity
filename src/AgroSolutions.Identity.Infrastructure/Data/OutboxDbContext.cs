@@ -29,7 +29,6 @@ public class OutboxDbContext(DbContextOptions<OutboxDbContext> options) : DbCont
 
             entity.Property(e => e.ErrorMessage).HasMaxLength(2000);
 
-            // Índices para melhorar performance de queries
             entity.HasIndex(e => new { e.Status, e.CreatedAt });
 
             entity.HasIndex(e => e.ProcessedAt);
