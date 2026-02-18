@@ -3,7 +3,7 @@
 ## ⚙️ Configuração Inicial
 
 **Região:** `sa-east-1` (São Paulo)  
-**Account ID:** `405114419969`
+**Account ID:** `316295889438`
 
 ---
 
@@ -44,28 +44,28 @@ Configure cada fila para enviar mensagens com falha para sua respectiva DLQ:
 ```bash
 # Obter ARNs das DLQs
 DLQ_IDENTITY_EVENTS=$(aws sqs get-queue-attributes \
-  --queue-url https://sqs.sa-east-1.amazonaws.com/405114419969/agrosolutions-identity-events-dlq \
+  --queue-url https://sqs.sa-east-1.amazonaws.com/316295889438/agrosolutions-identity-events-dlq \
   --attribute-names QueueArn \
   --region sa-east-1 \
   --query 'Attributes.QueueArn' \
   --output text)
 
 DLQ_EMAIL=$(aws sqs get-queue-attributes \
-  --queue-url https://sqs.sa-east-1.amazonaws.com/405114419969/agrosolutions-email-queue-dlq \
+  --queue-url https://sqs.sa-east-1.amazonaws.com/316295889438/agrosolutions-email-queue-dlq \
   --attribute-names QueueArn \
   --region sa-east-1 \
   --query 'Attributes.QueueArn' \
   --output text)
 
 DLQ_PRODUTOR=$(aws sqs get-queue-attributes \
-  --queue-url https://sqs.sa-east-1.amazonaws.com/405114419969/agrosolutions-produtor-sync-queue-dlq \
+  --queue-url https://sqs.sa-east-1.amazonaws.com/316295889438/agrosolutions-produtor-sync-queue-dlq \
   --attribute-names QueueArn \
   --region sa-east-1 \
   --query 'Attributes.QueueArn' \
   --output text)
 
 DLQ_STATUS=$(aws sqs get-queue-attributes \
-  --queue-url https://sqs.sa-east-1.amazonaws.com/405114419969/agrosolutions-status-changed-queue-dlq \
+  --queue-url https://sqs.sa-east-1.amazonaws.com/316295889438/agrosolutions-status-changed-queue-dlq \
   --attribute-names QueueArn \
   --region sa-east-1 \
   --query 'Attributes.QueueArn' \
@@ -73,22 +73,22 @@ DLQ_STATUS=$(aws sqs get-queue-attributes \
 
 # Configurar Redrive Policies
 aws sqs set-queue-attributes \
-  --queue-url https://sqs.sa-east-1.amazonaws.com/405114419969/agrosolutions-identity-events \
+  --queue-url https://sqs.sa-east-1.amazonaws.com/316295889438/agrosolutions-identity-events \
   --attributes "{\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"$DLQ_IDENTITY_EVENTS\\\",\\\"maxReceiveCount\\\":\\\"3\\\"}\"}" \
   --region sa-east-1
 
 aws sqs set-queue-attributes \
-  --queue-url https://sqs.sa-east-1.amazonaws.com/405114419969/agrosolutions-email-queue \
+  --queue-url https://sqs.sa-east-1.amazonaws.com/316295889438/agrosolutions-email-queue \
   --attributes "{\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"$DLQ_EMAIL\\\",\\\"maxReceiveCount\\\":\\\"3\\\"}\"}" \
   --region sa-east-1
 
 aws sqs set-queue-attributes \
-  --queue-url https://sqs.sa-east-1.amazonaws.com/405114419969/agrosolutions-produtor-sync-queue \
+  --queue-url https://sqs.sa-east-1.amazonaws.com/316295889438/agrosolutions-produtor-sync-queue \
   --attributes "{\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"$DLQ_PRODUTOR\\\",\\\"maxReceiveCount\\\":\\\"3\\\"}\"}" \
   --region sa-east-1
 
 aws sqs set-queue-attributes \
-  --queue-url https://sqs.sa-east-1.amazonaws.com/405114419969/agrosolutions-status-changed-queue \
+  --queue-url https://sqs.sa-east-1.amazonaws.com/316295889438/agrosolutions-status-changed-queue \
   --attributes "{\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"$DLQ_STATUS\\\",\\\"maxReceiveCount\\\":\\\"3\\\"}\"}" \
   --region sa-east-1
 ```
@@ -117,16 +117,16 @@ Você deve ver **3 tópicos** listados.
 ```bash
 # 4.1 - agrosolutions-user-events → agrosolutions-produtor-sync-queue
 aws sns subscribe \
-  --topic-arn arn:aws:sns:sa-east-1:405114419969:agrosolutions-user-events \
+  --topic-arn arn:aws:sns:sa-east-1:316295889438:agrosolutions-user-events \
   --protocol sqs \
-  --notification-endpoint arn:aws:sqs:sa-east-1:405114419969:agrosolutions-produtor-sync-queue \
+  --notification-endpoint arn:aws:sqs:sa-east-1:316295889438:agrosolutions-produtor-sync-queue \
   --region sa-east-1
 
 # 4.2 - agrosolutions-email-notifications → agrosolutions-email-queue
 aws sns subscribe \
-  --topic-arn arn:aws:sns:sa-east-1:405114419969:agrosolutions-email-notifications \
+  --topic-arn arn:aws:sns:sa-east-1:316295889438:agrosolutions-email-notifications \
   --protocol sqs \
-  --notification-endpoint arn:aws:sqs:sa-east-1:405114419969:agrosolutions-email-queue \
+  --notification-endpoint arn:aws:sqs:sa-east-1:316295889438:agrosolutions-email-queue \
   --region sa-east-1
 ```
 
@@ -139,17 +139,17 @@ Crie as policies para permitir que os tópicos SNS enviem mensagens para as fila
 ```bash
 # 5.1 - Policy para agrosolutions-produtor-sync-queue
 aws sqs set-queue-attributes \
-  --queue-url https://sqs.sa-east-1.amazonaws.com/405114419969/agrosolutions-produtor-sync-queue \
+  --queue-url https://sqs.sa-east-1.amazonaws.com/316295889438/agrosolutions-produtor-sync-queue \
   --attributes '{
-    "Policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"sns.amazonaws.com\"},\"Action\":\"sqs:SendMessage\",\"Resource\":\"arn:aws:sqs:sa-east-1:405114419969:agrosolutions-produtor-sync-queue\",\"Condition\":{\"ArnEquals\":{\"aws:SourceArn\":\"arn:aws:sns:sa-east-1:405114419969:agrosolutions-user-events\"}}}]}"
+    "Policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"sns.amazonaws.com\"},\"Action\":\"sqs:SendMessage\",\"Resource\":\"arn:aws:sqs:sa-east-1:316295889438:agrosolutions-produtor-sync-queue\",\"Condition\":{\"ArnEquals\":{\"aws:SourceArn\":\"arn:aws:sns:sa-east-1:316295889438:agrosolutions-user-events\"}}}]}"
   }' \
   --region sa-east-1
 
 # 5.2 - Policy para agrosolutions-email-queue
 aws sqs set-queue-attributes \
-  --queue-url https://sqs.sa-east-1.amazonaws.com/405114419969/agrosolutions-email-queue \
+  --queue-url https://sqs.sa-east-1.amazonaws.com/316295889438/agrosolutions-email-queue \
   --attributes '{
-    "Policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"sns.amazonaws.com\"},\"Action\":\"sqs:SendMessage\",\"Resource\":\"arn:aws:sqs:sa-east-1:405114419969:agrosolutions-email-queue\",\"Condition\":{\"ArnEquals\":{\"aws:SourceArn\":\"arn:aws:sns:sa-east-1:405114419969:agrosolutions-email-notifications\"}}}]}"
+    "Policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"sns.amazonaws.com\"},\"Action\":\"sqs:SendMessage\",\"Resource\":\"arn:aws:sqs:sa-east-1:316295889438:agrosolutions-email-queue\",\"Condition\":{\"ArnEquals\":{\"aws:SourceArn\":\"arn:aws:sns:sa-east-1:316295889438:agrosolutions-email-notifications\"}}}]}"
   }' \
   --region sa-east-1
 ```
@@ -300,7 +300,82 @@ dotnet tool install -g Amazon.Lambda.Tools
 dotnet lambda --version
 ```
 
-### 9.2 - Deploy da Lambda Function
+### 9.2 - Criar IAM Role para Lambda
+
+Primeiro, crie a IAM Role com as permissões necessárias:
+
+```bash
+# 9.2.1 - Criar a trust policy para Lambda
+cat > /tmp/lambda-trust-policy.json << 'EOF'
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "lambda.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+EOF
+
+# 9.2.2 - Criar a IAM Role
+aws iam create-role \
+  --role-name AgroSolutions-Lambda-EmailProcessor-Role \
+  --assume-role-policy-document file:///tmp/lambda-trust-policy.json \
+  --description "Role para Lambda EmailProcessor com permissões SQS, SES e CloudWatch" \
+  --region sa-east-1
+
+# 9.2.3 - Criar a policy com permissões específicas
+cat > /tmp/lambda-permissions-policy.json << 'EOF'
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:sa-east-1:316295889438:*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "sqs:ReceiveMessage",
+        "sqs:DeleteMessage",
+        "sqs:GetQueueAttributes"
+      ],
+      "Resource": "arn:aws:sqs:sa-east-1:316295889438:agrosolutions-email-queue"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ses:SendEmail",
+        "ses:SendRawEmail"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+EOF
+
+# 9.2.4 - Anexar a policy customizada à role
+aws iam put-role-policy \
+  --role-name AgroSolutions-Lambda-EmailProcessor-Role \
+  --policy-name AgroSolutions-Lambda-EmailProcessor-Policy \
+  --policy-document file:///tmp/lambda-permissions-policy.json \
+  --region sa-east-1
+
+# 9.2.5 - Aguardar alguns segundos para a role propagar
+echo "Aguardando propagação da IAM Role..."
+sleep 10
+```
+
+### 9.3 - Deploy da Lambda Function
 
 ```bash
 cd lambda/EmailLambda
@@ -308,17 +383,19 @@ cd lambda/EmailLambda
 # Deploy da função Lambda
 dotnet lambda deploy-function AgroSolutions-EmailProcessor \
   --region sa-east-1 \
-  --function-role lambda-execution-role \
+  --function-role AgroSolutions-Lambda-EmailProcessor-Role \
+  --function-handler "EmailLambda::EmailLambda.Function::FunctionHandler" \
+  --function-memory-size 512 \
+  --function-timeout 30 \
   --environment-variables "FROM_EMAIL=vinicius_pinheiro02@hotmail.com;FROM_NAME=AgroSolutions"
 ```
 
-**Nota:** Se você não tiver uma IAM Role criada, o comando irá te guiar para criar uma automaticamente.
+### 9.4 - Configurar Event Source Mapping (Lambda → SQS)
 
-### Configurar Event Source Mapping (Lambda → SQS):
 ```bash
 aws lambda create-event-source-mapping \
   --function-name AgroSolutions-EmailProcessor \
-  --event-source-arn arn:aws:sqs:sa-east-1:405114419969:agrosolutions-email-queue \
+  --event-source-arn arn:aws:sqs:sa-east-1:316295889438:agrosolutions-email-queue \
   --batch-size 10 \
   --enabled \
   --region sa-east-1
@@ -335,13 +412,13 @@ Para remover TODOS os recursos:
 aws sns list-subscriptions --region sa-east-1 --query "Subscriptions[?contains(TopicArn, 'agrosolutions')].SubscriptionArn" --output text | tr '\t' '\n' | xargs -I {} aws sns unsubscribe --subscription-arn {} --region sa-east-1
 
 # Remover Tópicos SNS
-aws sns delete-topic --topic-arn arn:aws:sns:sa-east-1:405114419969:agrosolutions-user-events --region sa-east-1
-aws sns delete-topic --topic-arn arn:aws:sns:sa-east-1:405114419969:agrosolutions-email-notifications --region sa-east-1
-aws sns delete-topic --topic-arn arn:aws:sns:sa-east-1:405114419969:agrosolutions-property-events --region sa-east-1
+aws sns delete-topic --topic-arn arn:aws:sns:sa-east-1:316295889438:agrosolutions-user-events --region sa-east-1
+aws sns delete-topic --topic-arn arn:aws:sns:sa-east-1:316295889438:agrosolutions-email-notifications --region sa-east-1
+aws sns delete-topic --topic-arn arn:aws:sns:sa-east-1:316295889438:agrosolutions-property-events --region sa-east-1
 
 # Remover Filas SQS
 for queue in identity-events email-queue produtor-sync-queue status-changed-queue identity-events-dlq email-queue-dlq produtor-sync-queue-dlq status-changed-queue-dlq; do
-  aws sqs delete-queue --queue-url https://sqs.sa-east-1.amazonaws.com/405114419969/agrosolutions-$queue --region sa-east-1 2>/dev/null
+  aws sqs delete-queue --queue-url https://sqs.sa-east-1.amazonaws.com/316295889438/agrosolutions-$queue --region sa-east-1 2>/dev/null
 done
 
 # Remover Identidades SES
@@ -351,6 +428,19 @@ aws ses delete-identity --identity suporte@agrosolutions.com.br --region sa-east
 
 # Remover Configuration Set
 aws ses delete-configuration-set --configuration-set-name agrosolutions-production --region sa-east-1
+
+# Remover Lambda Function (se foi criada)
+aws lambda delete-function --function-name AgroSolutions-EmailProcessor --region sa-east-1 2>/dev/null
+
+# Remover IAM Role da Lambda (se foi criada)
+aws iam delete-role-policy \
+  --role-name AgroSolutions-Lambda-EmailProcessor-Role \
+  --policy-name AgroSolutions-Lambda-EmailProcessor-Policy \
+  --region sa-east-1 2>/dev/null
+
+aws iam delete-role \
+  --role-name AgroSolutions-Lambda-EmailProcessor-Role \
+  --region sa-east-1 2>/dev/null
 ```
 
 ---
@@ -382,7 +472,7 @@ aws sns list-topics --region sa-east-1 | grep agrosolutions
 ### Verificar se mensagens estão sendo entregues:
 ```bash
 # Ver mensagens na fila
-aws sqs receive-message --queue-url https://sqs.sa-east-1.amazonaws.com/405114419969/agrosolutions-email-queue --region sa-east-1
+aws sqs receive-message --queue-url https://sqs.sa-east-1.amazonaws.com/316295889438/agrosolutions-email-queue --region sa-east-1
 ```
 
 ### Emails SES ficam "Pending" para sempre:
