@@ -170,16 +170,25 @@ Para 10k usuários e 1k emails/dia:
 
 ## 📋 Checklist de Deploy
 
+### Setup Inicial (Manual - Uma vez)
 - [ ] AWS CLI configurado (`aws sts get-caller-identity`)
 - [ ] Filas SQS criadas (identity-events, email-queue, produtor-sync-queue, status-changed-queue)
 - [ ] Tópicos SNS criados (user-events, email-notifications, property-events)
 - [ ] Subscriptions SNS → SQS configuradas
 - [ ] Emails SES verificados (noreply@, admin@, suporte@)
-- [ ] Lambda function deployed (AgroSolutions-EmailProcessor)
-- [ ] Event source mapping SQS → Lambda configurado
-- [ ] ACCOUNT_ID atualizado em appsettings.Production.json
-- [ ] API executando e publicando eventos
-- [ ] Monitoramento CloudWatch configurado
+- [ ] **IAM Role para Lambda criada** (AgroSolutions-Lambda-EmailProcessor-Role)
+- [ ] GitHub Secrets configurados (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, etc.)
+- [ ] EKS Cluster criado e configurado
+
+### Deploy Automático (via CI/CD)
+- [ ] Push para branch `main` dispara pipeline
+- [ ] Build e testes passam com sucesso
+- [ ] Docker image enviada para ECR
+- [ ] Aplicação deployada no EKS
+- [ ] **Lambda deployada automaticamente** (se houver mudanças em `lambda/`)
+- [ ] Event source mapping SQS → Lambda configurado automaticamente
+- [ ] Health checks passando
+- [ ] Monitoramento CloudWatch ativo
 
 ## 📝 License
 

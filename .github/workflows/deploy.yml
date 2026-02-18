@@ -1,0 +1,425 @@
+name: AgroSolutions Identity - CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  ECR_REPOSITORY: agrosolutions-identity-api
+  EKS_CLUSTER_NAME: agrosolutions-eks-cluster
+  AWS_REGION: sa-east-1
+  DOTNET_VERSION: "10.0.x"
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore AgroSolutions.Identity.sln
+
+      - name: Build solution
+        run: dotnet build AgroSolutions.Identity.sln -c Release --no-restore
+
+      - name: Run tests
+        run: |
+          cd src/AgroSolutions.Identity.Test/
+          dotnet test --no-build --configuration Release --verbosity normal --logger "console;verbosity=detailed"
+
+  deploy-to-eks:
+    name: Deploy to AWS EKS
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify AWS connection
+        run: |
+          echo "Verificando credenciais AWS..."
+          aws sts get-caller-identity
+          echo "Verificando cluster EKS..."
+          aws eks describe-cluster --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push Docker image
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+          BUILD_DATE: ${{ github.event.head_commit.timestamp }}
+          VERSION: "1.0.0"
+        run: |
+          echo "Building Docker image..."
+          docker build \
+            --build-arg BUILD_DATE=$BUILD_DATE \
+            --build-arg VERSION=$VERSION \
+            --build-arg REVISION=${{ github.sha }} \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            .
+
+          echo "Pushing to ECR..."
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "✅ Image pushed successfully: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      - name: Configure Kubectl for EKS
+        run: |
+          aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+          kubectl version --client
+
+      - name: Verify EKS connection
+        run: |
+          echo "Verificando conectividade com EKS..."
+          kubectl cluster-info
+          kubectl get nodes
+          echo "Namespaces existentes:"
+          kubectl get namespaces
+
+      - name: Create Kubernetes secrets
+        run: |
+          # Verificar se secrets já existem, se não, criar
+          echo "Criando/atualizando secrets do Kubernetes..."
+          
+          # Keycloak Client Secrets
+          kubectl create secret generic keycloak-client-secrets \
+            --from-literal=admin-client-secret=${{ secrets.KEYCLOAK_ADMIN_CLIENT_SECRET }} \
+            --from-literal=api-client-secret=${{ secrets.KEYCLOAK_API_CLIENT_SECRET }} \
+            -n agrosolutions-identity --dry-run=client -o yaml | kubectl apply -f -
+          
+          # JWT Secrets
+          kubectl create secret generic jwt-secrets \
+            --from-literal=issuer=http://keycloak-service:8080/realms/agrosolutions \
+            -n agrosolutions-identity --dry-run=client -o yaml | kubectl apply -f -
+          
+          # Database Secrets
+          kubectl create secret generic database-secrets \
+            --from-literal=keycloak-db-user=keycloak \
+            --from-literal=keycloak-db-password=${{ secrets.KEYCLOAK_DB_PASSWORD }} \
+            --from-literal=postgres-exporter-dsn="postgresql://keycloak:${{ secrets.KEYCLOAK_DB_PASSWORD }}@keycloak-db-service:5432/keycloak?sslmode=disable" \
+            -n agrosolutions-identity --dry-run=client -o yaml | kubectl apply -f -
+          
+          # AWS Credentials
+          kubectl create secret generic aws-credentials \
+            --from-literal=access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
+            --from-literal=secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+            -n agrosolutions-identity --dry-run=client -o yaml | kubectl apply -f -
+          
+          echo "✅ Secrets configurados com sucesso!"
+
+      - name: Deploy to EKS
+        run: |
+          echo "Imagem a ser deployada: ${{ steps.build-image.outputs.image }}"
+
+          # Substituir placeholder da imagem no deployment
+          sed -i 's|316295889438.dkr.ecr.sa-east-1.amazonaws.com/agrosolutions-identity-api:latest|${{ steps.build-image.outputs.image }}|g' k8s/production/deployment.yaml
+
+          echo "Verificando substituição da imagem:"
+          grep "image:" k8s/production/deployment.yaml | head -5
+
+          # Aplicar manifestos na ordem correta
+          echo "📦 Aplicando namespace..."
+          kubectl apply -f k8s/production/namespace.yaml
+
+          echo "🔧 Aplicando ConfigMaps..."
+          kubectl apply -f k8s/production/configmaps.yaml
+
+          echo "💾 Aplicando Storage Class e Volumes..."
+          kubectl apply -f k8s/production/storage-class.yaml
+          kubectl apply -f k8s/production/volumes.yaml
+
+          echo "🗄️ Deployando banco de dados..."
+          kubectl apply -f k8s/production/databases.yaml
+
+          echo "📡 Aplicando Services..."
+          kubectl apply -f k8s/production/services.yaml
+
+          echo "☁️ Aplicando Infrastructure configs..."
+          kubectl apply -f k8s/production/infrastructure.yaml
+
+          echo "⏳ Aguardando banco de dados ficar pronto..."
+          kubectl wait --for=condition=ready pod -l app=keycloak-db -n agrosolutions-identity --timeout=300s || true
+
+          echo "🚀 Aplicando deployment da aplicação..."
+          kubectl apply -f k8s/production/deployment.yaml
+
+          echo "🔄 Aplicando HPA..."
+          kubectl apply -f k8s/production/hpa.yaml
+
+          echo "🌐 Aplicando Ingress..."
+          kubectl apply -f k8s/production/ingress-aws.yaml
+          kubectl apply -f k8s/production/ingress-grafana.yaml
+
+          echo "📊 Aplicando configurações de observabilidade..."
+          kubectl apply -f k8s/production/prometheus-rbac.yaml
+          kubectl apply -f k8s/production/observability.yaml
+
+          echo "⚙️ Aplicando Resource Configs..."
+          kubectl apply -f k8s/production/resource-configs.yaml
+
+          echo "✅ Manifestos aplicados com sucesso!"
+
+      - name: Verify Deployment
+        run: |
+          echo "🔍 Verificando status do deploy..."
+          
+          echo "Pods:"
+          kubectl get pods -n agrosolutions-identity
+          
+          echo "Services:"
+          kubectl get svc -n agrosolutions-identity
+          
+          echo "Ingress:"
+          kubectl get ingress -n agrosolutions-identity
+
+          # Aguardar rollout dos deployments
+          echo "⏳ Aguardando rollout da Identity API..."
+          kubectl rollout status deployment/identity-api -n agrosolutions-identity --timeout=300s
+
+          echo "⏳ Aguardando rollout do Keycloak..."
+          kubectl rollout status deployment/keycloak -n agrosolutions-identity --timeout=300s
+
+          # Status final
+          echo "📊 Status final dos deployments:"
+          kubectl get deployments -n agrosolutions-identity
+          kubectl get pods -n agrosolutions-identity -o wide
+
+          # HPA status
+          echo "📈 Status do HPA:"
+          kubectl get hpa -n agrosolutions-identity
+
+          # Teste de saúde
+          echo "🏥 Testando health endpoint..."
+          LOAD_BALANCER=$(kubectl get ingress identity-api-ingress -n agrosolutions-identity -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "pending")
+          
+          if [ "$LOAD_BALANCER" != "pending" ] && [ -n "$LOAD_BALANCER" ]; then
+            echo "Load Balancer: $LOAD_BALANCER"
+            echo "Aguardando propagação do ingress (30s)..."
+            sleep 30
+
+            # Testar endpoint com retry
+            for i in {1..5}; do
+              echo "Tentativa $i/5 - Testando health endpoint..."
+              if curl -f -H "Host: api.agrosolutions.com" "http://$LOAD_BALANCER/identity/health" --connect-timeout 10 --max-time 30; then
+                echo "✅ Health check passou!"
+                break
+              else
+                echo "⚠️ Health check falhou, tentando novamente em 10s..."
+                sleep 10
+              fi
+              
+              if [ $i -eq 5 ]; then
+                echo "⚠️ Health check não passou após 5 tentativas (pode estar OK, ingress pode demorar a propagar)"
+              fi
+            done
+          else
+            echo "⏳ Load Balancer ainda não provisionado, verifique manualmente após alguns minutos"
+          fi
+
+          echo "🚀 Deploy concluído com sucesso!"
+
+      - name: Deployment Summary
+        if: success()
+        run: |
+          echo "📊 DEPLOYMENT SUMMARY"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✅ Build: SUCCESS"
+          echo "✅ Docker Image: ${{ steps.build-image.outputs.image }}"
+          echo "✅ Deployment: SUCCESS"
+          echo "🌍 Environment: Production (AWS EKS)"
+          echo "📅 Deployed at: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          echo "🆔 Commit: ${{ github.sha }}"
+          echo "👤 Author: ${{ github.actor }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "❌ Deploy falhou. Executando rollback..."
+
+          if kubectl cluster-info &> /dev/null; then
+            echo "Conexão com Kubernetes OK, executando rollback..."
+            
+            if kubectl get deployment identity-api -n agrosolutions-identity &> /dev/null; then
+              echo "⏪ Fazendo rollback da Identity API..."
+              kubectl rollout undo deployment/identity-api -n agrosolutions-identity
+            fi
+            
+            if kubectl get deployment keycloak -n agrosolutions-identity &> /dev/null; then
+              echo "⏪ Fazendo rollback do Keycloak..."
+              kubectl rollout undo deployment/keycloak -n agrosolutions-identity
+            fi
+            
+            echo "✅ Rollback executado. Verifique os logs para detalhes do erro."
+          else
+            echo "❌ Não foi possível conectar ao Kubernetes. Rollback manual necessário."
+            exit 1
+          fi
+
+  deploy-lambda:
+    name: Deploy AWS Lambda (Email Processor)
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # Necessário para detectar mudanças
+
+      - name: Check for Lambda changes
+        id: lambda-changes
+        run: |
+          # Verifica se houve mudanças no diretório lambda/
+          if git diff --name-only HEAD~1 HEAD | grep -q '^lambda/'; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "✅ Detectadas mudanças no código da Lambda"
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "⏭️ Nenhuma mudança na Lambda, pulando deploy"
+          fi
+
+      - name: Setup .NET SDK 8.0
+        if: steps.lambda-changes.outputs.changed == 'true'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Install Amazon.Lambda.Tools
+        if: steps.lambda-changes.outputs.changed == 'true'
+        run: dotnet tool install -g Amazon.Lambda.Tools
+
+      - name: Configure AWS credentials
+        if: steps.lambda-changes.outputs.changed == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify IAM Role exists
+        if: steps.lambda-changes.outputs.changed == 'true'
+        run: |
+          echo "🔍 Verificando se o IAM Role existe..."
+          ROLE_NAME="AgroSolutions-Lambda-EmailProcessor-Role"
+          
+          if aws iam get-role --role-name $ROLE_NAME &> /dev/null; then
+            echo "✅ IAM Role encontrado: $ROLE_NAME"
+            ROLE_ARN=$(aws iam get-role --role-name $ROLE_NAME --query 'Role.Arn' --output text)
+            echo "ROLE_ARN=$ROLE_ARN" >> $GITHUB_ENV
+          else
+            echo "❌ IAM Role não encontrado: $ROLE_NAME"
+            echo "Por favor, execute os comandos de criação do IAM Role descritos em docs/AWS_SETUP_MANUAL.md seção 9.2"
+            exit 1
+          fi
+
+      - name: Build Lambda project
+        if: steps.lambda-changes.outputs.changed == 'true'
+        run: |
+          echo "🔨 Building Lambda function..."
+          cd lambda/EmailLambda/
+          dotnet restore
+          dotnet build -c Release
+
+      - name: Deploy Lambda function
+        if: steps.lambda-changes.outputs.changed == 'true'
+        run: |
+          echo "🚀 Deploying Lambda function..."
+          cd lambda/EmailLambda/
+          
+          dotnet lambda deploy-function AgroSolutions-EmailProcessor \
+            --function-role ${{ env.ROLE_ARN }} \
+            --region ${{ env.AWS_REGION }} \
+            --configuration Release \
+            --function-runtime dotnet8 \
+            --function-memory-size 512 \
+            --function-timeout 300 \
+            --function-handler EmailLambda::AgroSolutions.EmailLambda.Function::FunctionHandler \
+            --environment-variables \
+              ENVIRONMENT=Production\;FROM_EMAIL=vinicius_pinheiro02@hotmail.com\;FROM_NAME=AgroSolutions
+
+      - name: Configure SQS Trigger
+        if: steps.lambda-changes.outputs.changed == 'true'
+        run: |
+          echo "🔗 Configurando trigger SQS..."
+          
+          LAMBDA_ARN=$(aws lambda get-function \
+            --function-name AgroSolutions-EmailProcessor \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Configuration.FunctionArn' \
+            --output text)
+          
+          QUEUE_ARN="arn:aws:sqs:sa-east-1:316295889438:email-queue"
+          
+          # Verificar se o event source mapping já existe
+          MAPPING_UUID=$(aws lambda list-event-source-mappings \
+            --function-name AgroSolutions-EmailProcessor \
+            --region ${{ env.AWS_REGION }} \
+            --query "EventSourceMappings[?EventSourceArn=='$QUEUE_ARN'].UUID" \
+            --output text)
+          
+          if [ -z "$MAPPING_UUID" ]; then
+            echo "📌 Criando novo event source mapping..."
+            aws lambda create-event-source-mapping \
+              --function-name AgroSolutions-EmailProcessor \
+              --event-source-arn $QUEUE_ARN \
+              --batch-size 10 \
+              --maximum-batching-window-in-seconds 5 \
+              --region ${{ env.AWS_REGION }}
+            echo "✅ Event source mapping criado"
+          else
+            echo "✅ Event source mapping já existe: $MAPPING_UUID"
+          fi
+
+      - name: Lambda Deployment Summary
+        if: steps.lambda-changes.outputs.changed == 'true' && success()
+        run: |
+          echo "📊 LAMBDA DEPLOYMENT SUMMARY"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✅ Function: AgroSolutions-EmailProcessor"
+          echo "✅ Runtime: dotnet8"
+          echo "✅ Region: ${{ env.AWS_REGION }}"
+          echo "✅ Trigger: SQS (email-queue)"
+          echo "📅 Deployed at: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          echo "🆔 Commit: ${{ github.sha }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          
+          # Mostrar informações da função
+          aws lambda get-function \
+            --function-name AgroSolutions-EmailProcessor \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Configuration.[FunctionName,Runtime,MemorySize,Timeout,LastModified]' \
+            --output table
+
+      - name: Skip Lambda deployment
+        if: steps.lambda-changes.outputs.changed == 'false'
+        run: |
+          echo "ℹ️ Lambda deployment skipped - no changes detected in lambda/ directory"

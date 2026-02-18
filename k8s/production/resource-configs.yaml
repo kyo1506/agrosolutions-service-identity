@@ -1,0 +1,50 @@
+---
+# Resource Quotas for Namespace
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: agrosolutions-identity-quota
+  namespace: agrosolutions-identity
+spec:
+  hard:
+    requests.cpu: "20"
+    requests.memory: 40Gi
+    limits.cpu: "40"
+    limits.memory: 80Gi
+    persistentvolumeclaims: "10"
+
+---
+# Limit Ranges for Pods
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: agrosolutions-identity-limits
+  namespace: agrosolutions-identity
+spec:
+  limits:
+    - max:
+        cpu: "4"
+        memory: 8Gi
+      min:
+        cpu: "100m"
+        memory: 128Mi
+      default:
+        cpu: "500m"
+        memory: 512Mi
+      defaultRequest:
+        cpu: "250m"
+        memory: 256Mi
+      type: Container
+
+---
+# PodDisruptionBudget for Identity API
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: identity-api-pdb
+  namespace: agrosolutions-identity
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: identity-api

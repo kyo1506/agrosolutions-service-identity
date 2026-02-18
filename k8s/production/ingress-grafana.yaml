@@ -1,0 +1,52 @@
+# Grafana Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana-ingress
+  namespace: agrosolutions-identity
+  annotations:
+    konghq.com/strip-path: "false"
+    konghq.com/preserve-host: "true"
+    konghq.com/plugins: grafana-cors
+spec:
+  ingressClassName: kong
+  rules:
+    - host: grafana.agrosolutions.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana-service
+                port:
+                  number: 3000
+
+---
+# CORS para Grafana
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: grafana-cors
+  namespace: agrosolutions-identity
+plugin: cors
+config:
+  origins:
+    - "*"
+  methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - OPTIONS
+  headers:
+    - Accept
+    - Accept-Version
+    - Content-Length
+    - Content-MD5
+    - Content-Type
+    - Date
+    - Authorization
+  credentials: true
+  max_age: 3600
+  preflight_continue: false

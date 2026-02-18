@@ -2,7 +2,7 @@
 
 ## Architecture Overview
 
-This is an **ASP.NET Core Web API (.NET 10.0)** that serves as an authentication and identity management service wrapping **Keycloak 26.0.5** as the identity provider. The architecture follows clean architecture principles with clear separation of concerns:
+This is an **ASP.NET Core Web API (.NET 10.0)** that serves as an authentication and identity management service wrapping **Keycloak 26.5.2** as the identity provider. The architecture follows clean architecture principles with clear separation of concerns:
 
 - **Api**: Controllers, middleware, configurations, and ASP.NET Core setup ([Program.cs](../src/AgroSolutions.Identity.Api/Program.cs))
 - **Domain**: Core business interfaces ([IKeycloakService](../src/AgroSolutions.Identity.Domain/Interfaces/IKeycloakService.cs), [INotifier](../src/AgroSolutions.Identity.Domain/Interfaces/INotifier.cs), [IUser](../src/AgroSolutions.Identity.Domain/Interfaces/IUser.cs)) and notification pattern
@@ -77,7 +77,7 @@ Full observability configured in [OpenTelemetryConfiguration.cs](../src/AgroSolu
 
 [LogContextMiddleware](../src/AgroSolutions.Identity.Api/Middlewares/LogContextMiddleware.cs) enriches logs with:
 
-- RequestId, CorrelationId (Kong-aware)
+- RequestId, CorrelationId (propagated from Ocelot Gateway via X-Correlation-Id header)
 - UserId, Username, SessionId (from JWT)
 
 ## Development Workflows
@@ -149,3 +149,42 @@ Docker build uses multi-stage Alpine images ([Dockerfile](../Dockerfile)).
 **Adding a new permission**: Define in [Permissions.cs](../src/AgroSolutions.Identity.Shared/Constants/Permissions.cs), add policy in [IdentityConfiguration.cs](../src/AgroSolutions.Identity.Api/Configurations/IdentityConfiguration.cs), register in [AppAuthorizationPolicies.cs](../src/AgroSolutions.Identity.Api/Extensions/AppAuthorizationPolicies.cs).
 
 **Domain validation**: Use `INotifier` in services, check in controllers with `CustomResponse<T>()` which automatically handles error responses.
+
+## CI/CD Pipeline
+
+### GitHub Actions Workflow
+
+Complete pipeline defined in [.github/workflows/deploy.yml](../workflows/deploy.yml) with 3 main jobs:
+
+1. **build-and-test**: Compiles .NET solution and runs unit tests
+2. **deploy-to-eks**: Builds Docker image, pushes to ECR, deploys to EKS
+3. **deploy-lambda**: Automatically deploys Email Processor Lambda when `lambda/` directory changes
+
+### Automatic Lambda Deployment
+
+- **Trigger**: Push to `main` branch with changes in `lambda/` directory
+- **Detection**: Uses `git diff --name-only HEAD~1 HEAD | grep '^lambda/'`
+- **Prerequisites**: IAM Role `AgroSolutions-Lambda-EmailProcessor-Role` must exist (created once manually via [docs/AWS_SETUP_MANUAL.md](../docs/AWS_SETUP_MANUAL.md))
+- **Process**:
+  1. Verifies IAM role exists
+  2. Builds Lambda with .NET 8
+  3. Deploys using `dotnet lambda deploy-function`
+  4. Configures SQS event source mapping automatically
+- **Optimization**: Skips if no Lambda code changes (saves CI/CD time)
+
+### Required GitHub Secrets
+
+- `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` - AWS credentials
+- `KEYCLOAK_ADMIN_CLIENT_SECRET` - Admin client for Keycloak
+- `KEYCLOAK_API_CLIENT_SECRET` - API client credentials
+- `KEYCLOAK_DB_PASSWORD` - PostgreSQL password for Keycloak
+
+See [.github/SECRETS_SETUP.md](SECRETS_SETUP.md) for detailed setup instructions.
+
+### Deployment Flow
+
+```
+Push to main → Build & Test → Deploy EKS (always) + Deploy Lambda (if lambda/ changed)
+```
+
+Manual deploy triggers: Settings > Actions > Deploy workflow > Run workflow

@@ -1,0 +1,35 @@
+---
+# AWS IAM Role for Service Account (IRSA) Annotation
+# This allows pods to assume AWS IAM roles without explicit credentials
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agrosolutions-identity-sa
+  namespace: agrosolutions-identity
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::316295889438:role/AgroSolutionsIdentityServiceRole
+
+---
+# Note: Secrets should be created manually or via GitOps/Sealed Secrets
+# The following are TEMPLATES - do NOT commit actual secrets to Git
+
+# Example: Create secrets using kubectl
+# kubectl create secret generic keycloak-client-secrets \
+#   --from-literal=admin-client-secret=YOUR_ADMIN_SECRET \
+#   --from-literal=api-client-secret=YOUR_API_SECRET \
+#   -n agrosolutions-identity
+
+# kubectl create secret generic jwt-secrets \
+#   --from-literal=issuer=http://keycloak-service:8080/realms/agrosolutions \
+#   -n agrosolutions-identity
+
+# kubectl create secret generic database-secrets \
+#   --from-literal=keycloak-db-user=keycloak \
+#   --from-literal=keycloak-db-password=YOUR_DB_PASSWORD \
+#   --from-literal=postgres-exporter-dsn='postgresql://keycloak:YOUR_DB_PASSWORD@keycloak-db-service:5432/keycloak?sslmode=disable' \
+#   -n agrosolutions-identity
+
+# kubectl create secret generic aws-credentials \
+#   --from-literal=access-key-id=YOUR_AWS_ACCESS_KEY \
+#   --from-literal=secret-access-key=YOUR_AWS_SECRET_KEY \
+#   -n agrosolutions-identity

@@ -1,0 +1,141 @@
+---
+# Identity API Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: identity-api
+  namespace: agrosolutions-identity
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: identity-api
+  template:
+    metadata:
+      labels:
+        app: identity-api
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: identity-api
+        image: 316295889438.dkr.ecr.sa-east-1.amazonaws.com/agrosolutions-identity-api:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        envFrom:
+        - configMapRef:
+            name: identity-api-config
+        env:
+        # Keycloak Secrets
+        - name: KeycloakConfiguration__AdminClientSecret
+          valueFrom:
+            secretKeyRef:
+              name: keycloak-client-secrets
+              key: admin-client-secret
+        - name: KeycloakConfiguration__ApiClientSecret
+          valueFrom:
+            secretKeyRef:
+              name: keycloak-client-secrets
+              key: api-client-secret
+        # JWT Secrets
+        - name: Jwt__Issuer
+          valueFrom:
+            secretKeyRef:
+              name: jwt-secrets
+              key: issuer
+        # AWS Credentials
+        - name: AWS__AccessKeyId
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: access-key-id
+        - name: AWS__SecretAccessKey
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: secret-access-key
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 5
+
+---
+# Keycloak Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: agrosolutions-identity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+    spec:
+      containers:
+      - name: keycloak
+        image: quay.io/keycloak/keycloak:26.5.2
+        args: ["start-dev"]
+        ports:
+        - containerPort: 8080
+          name: http
+        envFrom:
+        - configMapRef:
+            name: keycloak-config
+        env:
+        - name: KC_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: database-secrets
+              key: keycloak-db-password
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 10
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8080
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 5

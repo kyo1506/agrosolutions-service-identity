@@ -286,11 +286,20 @@ aws ses list-identities --region sa-east-1 | grep agrosolutions
 
 ---
 
-## 🚀 Passo 9: Deploy da Lambda Function (Opcional - Para Emails)
+## 🚀 Passo 9: Configurar Lambda Function para Processamento de Emails
 
-### 9.1 - Instalar AWS Lambda Tools para .NET
+### Visão Geral
 
-Primeiro, instale a ferramenta de deploy da AWS Lambda:
+A Lambda function `AgroSolutions-EmailProcessor` processa mensagens da fila SQS `agrosolutions-email-queue` e envia emails via SES.
+
+**Deploy Automático via CI/CD:**
+- ✅ O deploy da Lambda é **automático** via GitHub Actions quando há mudanças no diretório `lambda/`
+- ✅ Workflow: `.github/workflows/deploy.yml` - job `deploy-lambda`
+- ⚠️ **Requisito**: A IAM Role deve existir antes do primeiro deploy automático
+
+### 9.1 - Instalar AWS Lambda Tools para .NET (Desenvolvimento Local)
+
+Para testes locais ou deploy manual, instale a ferramenta de deploy da AWS Lambda:
 
 ```bash
 # Instalar Amazon Lambda Tools (ferramenta global)
@@ -300,9 +309,11 @@ dotnet tool install -g Amazon.Lambda.Tools
 dotnet lambda --version
 ```
 
-### 9.2 - Criar IAM Role para Lambda
+### 9.2 - Criar IAM Role para Lambda (OBRIGATÓRIO - Uma vez apenas)
 
-Primeiro, crie a IAM Role com as permissões necessárias:
+**⚠️ IMPORTANTE**: Esta role deve ser criada **antes** do primeiro deploy (manual ou automático).
+
+Crie a IAM Role com as permissões necessárias:
 
 ```bash
 # 9.2.1 - Criar a trust policy para Lambda
@@ -377,6 +388,38 @@ sleep 10
 
 ### 9.3 - Deploy da Lambda Function
 
+#### Opção 1: Deploy Automático (Recomendado)
+
+**O deploy é automático via GitHub Actions** quando:
+1. Há push na branch `main`
+2. Há mudanças no diretório `lambda/`
+
+O workflow executará:
+```bash
+# Build
+cd lambda/EmailLambda/
+dotnet restore
+dotnet build -c Release
+
+# Deploy
+dotnet lambda deploy-function AgroSolutions-EmailProcessor \
+  --function-role AgroSolutions-Lambda-EmailProcessor-Role \
+  --region sa-east-1 \
+  --configuration Release \
+  --function-runtime dotnet8 \
+  --function-memory-size 512 \
+  --function-timeout 300 \
+  --environment-variables ENVIRONMENT=Production;FROM_EMAIL=vinicius_pinheiro02@hotmail.com;FROM_NAME=AgroSolutions
+
+# Configurar trigger SQS automaticamente
+```
+
+**Logs do deploy**: Verifique a execução do workflow em `.github/workflows/deploy.yml`
+
+#### Opção 2: Deploy Manual (Para Testes)
+
+Se preferir fazer deploy manual localmente:
+
 ```bash
 cd lambda/EmailLambda
 
@@ -384,13 +427,15 @@ cd lambda/EmailLambda
 dotnet lambda deploy-function AgroSolutions-EmailProcessor \
   --region sa-east-1 \
   --function-role AgroSolutions-Lambda-EmailProcessor-Role \
-  --function-handler "EmailLambda::EmailLambda.Function::FunctionHandler" \
+  --function-handler "EmailLambda::AgroSolutions.EmailLambda.Function::FunctionHandler" \
   --function-memory-size 512 \
-  --function-timeout 30 \
+  --function-timeout 300 \
   --environment-variables "FROM_EMAIL=vinicius_pinheiro02@hotmail.com;FROM_NAME=AgroSolutions"
 ```
 
 ### 9.4 - Configurar Event Source Mapping (Lambda → SQS)
+
+**⚠️ Nota**: O CI/CD configura isso automaticamente. Execute manualmente apenas se necessário:
 
 ```bash
 aws lambda create-event-source-mapping \
