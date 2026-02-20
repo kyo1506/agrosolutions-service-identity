@@ -1,15 +1,23 @@
-# Grafana Ingress
+# Grafana Ingress (AWS ALB)
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: grafana-ingress
   namespace: agrosolutions-identity
   annotations:
-    konghq.com/strip-path: "false"
-    konghq.com/preserve-host: "true"
-    konghq.com/plugins: grafana-cors
+    # AWS Load Balancer Controller
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /api/health
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "15"
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: "5"
+    alb.ingress.kubernetes.io/success-codes: "200"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    # Certificate ARN (substitua pelo seu certificado ACM)
+    # alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:sa-east-1:316295889438:certificate/YOUR-CERT-ID
 spec:
-  ingressClassName: kong
+  ingressClassName: alb
   rules:
     - host: grafana.agrosolutions.com
       http:
@@ -21,32 +29,3 @@ spec:
                 name: grafana-service
                 port:
                   number: 3000
-
----
-# CORS para Grafana
-apiVersion: configuration.konghq.com/v1
-kind: KongPlugin
-metadata:
-  name: grafana-cors
-  namespace: agrosolutions-identity
-plugin: cors
-config:
-  origins:
-    - "*"
-  methods:
-    - GET
-    - POST
-    - PUT
-    - DELETE
-    - OPTIONS
-  headers:
-    - Accept
-    - Accept-Version
-    - Content-Length
-    - Content-MD5
-    - Content-Type
-    - Date
-    - Authorization
-  credentials: true
-  max_age: 3600
-  preflight_continue: false
