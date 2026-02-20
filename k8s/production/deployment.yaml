@@ -6,12 +6,9 @@ metadata:
   name: identity-api
   namespace: agrosolutions-identity
 spec:
-  replicas: 2
+  replicas: 1
   strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 0
-      maxSurge: 1
+    type: Recreate
   selector:
     matchLabels:
       app: identity-api
@@ -61,11 +58,11 @@ spec:
               key: secret-access-key
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "500m"
+            memory: "256Mi"
+            cpu: "200m"
           limits:
-            memory: "2Gi"
-            cpu: "2000m"
+            memory: "1Gi"
+            cpu: "800m"
         readinessProbe:
           httpGet:
             path: /health
