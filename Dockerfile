@@ -50,18 +50,18 @@ COPY --from=build --chown=appuser:appgroup /app/publish .
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false \
     DOTNET_RUNNING_IN_CONTAINER=true \
     DOTNET_EnableDiagnostics=0 \
-    ASPNETCORE_URLS=http://+:8080 \
+    ASPNETCORE_URLS=http://+:80 \
     TZ=America/Sao_Paulo
 
 # Trocar para usuário não-root
 USER appuser
 
-# Expor porta não-privilegiada
-EXPOSE 8080
+# Expor porta
+EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:80/health || exit 1
 
 # Usar exec form para sinais corretos
 ENTRYPOINT ["dotnet", "AgroSolutions.Identity.Api.dll"]
