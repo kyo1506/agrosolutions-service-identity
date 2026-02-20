@@ -92,6 +92,8 @@ metadata:
   namespace: agrosolutions-identity
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: keycloak
@@ -103,10 +105,12 @@ spec:
       containers:
       - name: keycloak
         image: quay.io/keycloak/keycloak:26.5.2
-        args: ["start-dev"]
+        args: ["start-dev", "--health-enabled=true"]
         ports:
         - containerPort: 8080
           name: http
+        - containerPort: 9000
+          name: management
         envFrom:
         - configMapRef:
             name: keycloak-config
@@ -118,15 +122,15 @@ spec:
               key: keycloak-db-password
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "500m"
+            memory: "256Mi"
+            cpu: "250m"
           limits:
-            memory: "2Gi"
-            cpu: "2000m"
+            memory: "1Gi"
+            cpu: "1000m"
         readinessProbe:
           httpGet:
             path: /health/ready
-            port: 8080
+            port: 9000
           initialDelaySeconds: 60
           periodSeconds: 10
           timeoutSeconds: 5
@@ -134,8 +138,8 @@ spec:
         livenessProbe:
           httpGet:
             path: /health/live
-            port: 8080
-          initialDelaySeconds: 90
+            port: 9000
+          initialDelaySeconds: 120
           periodSeconds: 30
           timeoutSeconds: 10
           failureThreshold: 5
