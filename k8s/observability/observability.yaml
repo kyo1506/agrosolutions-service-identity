@@ -4,7 +4,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: otel-collector
-  namespace: agrosolutions-identity
+  namespace: agrosolutions-observability
   labels:
     app: otel-collector
 spec:
@@ -70,7 +70,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: otel-collector-service
-  namespace: agrosolutions-identity
+  namespace: agrosolutions-observability
   labels:
     app: otel-collector
 spec:
@@ -97,7 +97,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: otel-collector-config
-  namespace: agrosolutions-identity
+  namespace: agrosolutions-observability
 data:
   config.yaml: |
     extensions:
@@ -186,7 +186,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: prometheus
-  namespace: agrosolutions-identity
+  namespace: agrosolutions-observability
 spec:
   replicas: 1
   selector:
@@ -260,7 +260,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: prometheus-service
-  namespace: agrosolutions-identity
+  namespace: agrosolutions-observability
   labels:
     app: prometheus
 spec:
@@ -278,7 +278,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: prometheus-config
-  namespace: agrosolutions-identity
+  namespace: agrosolutions-observability
 data:
   prometheus.yml: |
     global:
@@ -313,7 +313,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: loki
-  namespace: agrosolutions-identity
+  namespace: agrosolutions-observability
 spec:
   replicas: 1
   selector:
@@ -358,7 +358,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: loki-service
-  namespace: agrosolutions-identity
+  namespace: agrosolutions-observability
 spec:
   selector:
     app: loki
@@ -374,7 +374,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: loki-config
-  namespace: agrosolutions-identity
+  namespace: agrosolutions-observability
 data:
   loki.yaml: |
     auth_enabled: false
@@ -413,7 +413,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: tempo
-  namespace: agrosolutions-identity
+  namespace: agrosolutions-observability
 spec:
   replicas: 1
   selector:
@@ -460,7 +460,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: tempo-service
-  namespace: agrosolutions-identity
+  namespace: agrosolutions-observability
 spec:
   selector:
     app: tempo
@@ -479,7 +479,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: tempo-config
-  namespace: agrosolutions-identity
+  namespace: agrosolutions-observability
 data:
   tempo.yaml: |
     server:
@@ -510,7 +510,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: grafana
-  namespace: agrosolutions-identity
+  namespace: agrosolutions-observability
 spec:
   replicas: 1
   selector:
@@ -560,7 +560,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: grafana-service
-  namespace: agrosolutions-identity
+  namespace: agrosolutions-observability
 spec:
   selector:
     app: grafana
@@ -576,7 +576,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: grafana-datasources
-  namespace: agrosolutions-identity
+  namespace: agrosolutions-observability
 data:
   datasources.yaml: |
     apiVersion: 1
@@ -606,7 +606,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: prometheus-pvc
-  namespace: agrosolutions-identity
+  namespace: agrosolutions-observability
 spec:
   accessModes:
     - ReadWriteOnce
@@ -620,7 +620,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: loki-pvc
-  namespace: agrosolutions-identity
+  namespace: agrosolutions-observability
 spec:
   accessModes:
     - ReadWriteOnce
@@ -634,7 +634,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: tempo-pvc
-  namespace: agrosolutions-identity
+  namespace: agrosolutions-observability
 spec:
   accessModes:
     - ReadWriteOnce
@@ -648,7 +648,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: grafana-pvc
-  namespace: agrosolutions-identity
+  namespace: agrosolutions-observability
 spec:
   accessModes:
     - ReadWriteOnce

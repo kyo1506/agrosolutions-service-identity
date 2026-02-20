@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: agrosolutions-observability
+  labels:
+    app: agrosolutions-observability
+    environment: production

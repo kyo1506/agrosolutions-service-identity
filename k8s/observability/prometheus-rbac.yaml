@@ -4,7 +4,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: prometheus
-  namespace: agrosolutions-identity
+  namespace: agrosolutions-observability
 
 ---
 # ClusterRole for Prometheus
@@ -42,4 +42,4 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: prometheus
-    namespace: agrosolutions-identity
+    namespace: agrosolutions-observability

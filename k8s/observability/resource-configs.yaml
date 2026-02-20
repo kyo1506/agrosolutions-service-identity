@@ -1,0 +1,37 @@
+---
+# Resource Quotas for Observability Namespace
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: agrosolutions-observability-quota
+  namespace: agrosolutions-observability
+spec:
+  hard:
+    requests.cpu: "2"
+    requests.memory: 4Gi
+    limits.cpu: "4"
+    limits.memory: 8Gi
+    persistentvolumeclaims: "5"
+
+---
+# Limit Ranges for Observability Pods
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: agrosolutions-observability-limits
+  namespace: agrosolutions-observability
+spec:
+  limits:
+    - max:
+        cpu: "1"
+        memory: 2Gi
+      min:
+        cpu: "25m"
+        memory: 32Mi
+      default:
+        cpu: "200m"
+        memory: 256Mi
+      defaultRequest:
+        cpu: "100m"
+        memory: 128Mi
+      type: Container
