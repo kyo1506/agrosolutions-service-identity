@@ -133,7 +133,22 @@ public class OutboxProcessorJob(
                 ?? throw new InvalidOperationException(
                     $"Failed to deserialize event of type '{message.EventType}'"
                 );
-            await publishEndpoint.Publish(@event, eventType, cancellationToken);
+
+            // Use the generic Publish<T> path via reflection so MassTransit's SQS transport
+            // initializes the MessageAttributes dictionary correctly. The non-generic
+            // Publish(object, Type) overload leaves the header adapter context uninitialized,
+            // causing NullReferenceException inside TransportSetHeaderAdapter.
+            var publishMethod = typeof(IPublishEndpoint)
+                .GetMethods()
+                .First(m =>
+                    m.Name == nameof(IPublishEndpoint.Publish)
+                    && m.IsGenericMethod
+                    && m.GetParameters().Length == 2
+                    && m.GetParameters()[1].ParameterType == typeof(CancellationToken)
+                )
+                .MakeGenericMethod(eventType);
+
+            await (Task)publishMethod.Invoke(publishEndpoint, [@event, cancellationToken])!;
 
             message.Status = OutboxMessageStatus.Processed;
             message.ProcessedAt = DateTime.UtcNow;
