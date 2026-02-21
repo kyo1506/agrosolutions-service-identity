@@ -28,7 +28,6 @@ public static class DependencyInjectionAwsConfiguration
         services.AddScoped<INotifier, Notifier>();
 
         // Application Services
-        services.AddScoped<IKeycloakService, KeycloakService>();
         services.AddScoped<IEventPublisher, ResilientEventPublisher>();
         services.AddScoped<IEmailService, AwsSesEmailService>();
 
@@ -45,8 +44,12 @@ public static class DependencyInjectionAwsConfiguration
         // Amazon SES Client
         services.AddAWSService<IAmazonSimpleEmailService>();
 
-        // Keycloak HttpClient com Polly
-        services.AddHttpClient<IKeycloakService, KeycloakService>().AddStandardResilienceHandler();
+        // Keycloak HttpClient com Polly e BaseAddress configurado
+        var keycloakBaseUrl = configuration["KeycloakConfiguration:BaseUrl"] ?? "http://keycloak-service:8080";
+        services.AddHttpClient<IKeycloakService, KeycloakService>(client =>
+        {
+            client.BaseAddress = new Uri(keycloakBaseUrl);
+        }).AddStandardResilienceHandler();
 
         // Configurações
         services.Configure<KeycloakConfiguration>(
