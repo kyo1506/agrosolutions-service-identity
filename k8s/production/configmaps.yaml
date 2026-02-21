@@ -14,16 +14,16 @@ data:
   ConnectionStrings__OutboxDb: "Host=keycloak-db-service;Database=outbox;Username=keycloak;Password=teste"
 
   # JWT Configuration
-  Jwt__Authority: "http://keycloak-service:8080/realms/agrosolutions"
+  Jwt__Authority: "http://keycloak-service.agrosolutions-identity:8080/realms/agrosolutions"
   Jwt__Audience: "agrosolutions-api"
   Jwt__ExternalAuthority: "http://keycloak-admin.agrosolutions.site/realms/agrosolutions"
   
   # Keycloak Configuration  
-  KeycloakConfiguration__BaseUrl: "http://keycloak-service:8080"
+  KeycloakConfiguration__BaseUrl: "http://keycloak-service.agrosolutions-identity:8080"
   KeycloakConfiguration__TokenEndpointPath: "/realms/master/protocol/openid-connect/token"
   KeycloakConfiguration__UsersEndpointPath: "/admin/realms/agrosolutions/users"
   KeycloakConfiguration__TargetRealm: "agrosolutions"
-  KeycloakConfiguration__Audience: "http://keycloak-service:8080"
+  KeycloakConfiguration__Audience: "http://keycloak-service.agrosolutions-identity:8080"
   KeycloakConfiguration__AdminClientId: "agrosolutions-api-service-account"
   KeycloakConfiguration__ApiClientId: "agrosolutions-api"
 
