@@ -16,7 +16,7 @@ spec:
   type: ClusterIP
 
 ---
-# Keycloak Service
+# Keycloak Service (NodePort para acesso externo em ambiente de demonstração)
 apiVersion: v1
 kind: Service
 metadata:
@@ -30,7 +30,8 @@ spec:
       protocol: TCP
       port: 8080
       targetPort: 8080
-  type: ClusterIP
+      nodePort: 30080
+  type: NodePort
 
 ---
 # Keycloak Database Service  
