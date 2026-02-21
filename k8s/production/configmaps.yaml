@@ -10,6 +10,9 @@ data:
   ASPNETCORE_URLS: "http://*:80"
   AllowedHosts: "*"
   
+  # Database Configuration
+  ConnectionStrings__OutboxDb: "Host=keycloak-db-service;Database=outbox;Username=keycloak;Password=teste"
+
   # JWT Configuration
   Jwt__Authority: "http://keycloak-service:8080/realms/agrosolutions"
   Jwt__Audience: "agrosolutions-api"

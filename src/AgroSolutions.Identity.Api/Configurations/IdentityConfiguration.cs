@@ -38,9 +38,12 @@ public static class IdentityConfig
                     ValidIssuers = new[]
                     {
                         configuration["Jwt:Authority"], // http://keycloak-service:8080/realms/agrosolutions
-                        configuration["Jwt:Authority"]?.Replace("keycloak-service:8080", "localhost:8080"), // http://localhost:8080/realms/agrosolutions
+                        configuration["Jwt:Authority"]
+                            ?.Replace("keycloak-service:8080", "localhost:8080"), // http://localhost:8080/realms/agrosolutions
                         configuration["Jwt:ExternalAuthority"], // http://keycloak-admin.agrosolutions.site/realms/agrosolutions
-                    }.Where(i => !string.IsNullOrEmpty(i)).ToArray()!,
+                    }
+                        .Where(i => !string.IsNullOrEmpty(i))
+                        .ToArray()!,
                     ValidateAudience = true,
                     ValidAudiences = [configuration["Jwt:Audience"]],
                     ValidateLifetime = true,
