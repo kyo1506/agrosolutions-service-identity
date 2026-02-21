@@ -84,7 +84,7 @@ public class ResilientEventPublisher : IEventPublisher
     public async Task PublishAsync<T>(T @event, CancellationToken cancellationToken = default)
         where T : class
     {
-        var eventType = typeof(T).FullName ?? typeof(T).Name;
+        var eventType = typeof(T).AssemblyQualifiedName ?? typeof(T).FullName ?? typeof(T).Name;
         var stopwatch = Stopwatch.StartNew();
 
         using var activity = _activitySource.StartActivity("PublishEvent");

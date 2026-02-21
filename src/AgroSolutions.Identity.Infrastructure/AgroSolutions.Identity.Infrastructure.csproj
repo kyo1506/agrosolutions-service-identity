@@ -9,6 +9,7 @@
     <PackageReference Include="MassTransit.RabbitMQ" Version="8.2.5" />
     <PackageReference Include="MassTransit.AmazonSQS" Version="8.2.5" />
     <PackageReference Include="AWSSDK.SQS" Version="4.0.2.14" />
+    <PackageReference Include="AWSSDK.SecurityToken" Version="4.0.3" />
     <PackageReference Include="AWSSDK.SimpleEmail" Version="4.0.2.13" />
     <PackageReference Include="AWSSDK.SimpleNotificationService" Version="4.0.2.16" />
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.3.14" />

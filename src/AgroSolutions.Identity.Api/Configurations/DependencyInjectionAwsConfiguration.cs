@@ -45,11 +45,15 @@ public static class DependencyInjectionAwsConfiguration
         services.AddAWSService<IAmazonSimpleEmailService>();
 
         // Keycloak HttpClient com Polly e BaseAddress configurado
-        var keycloakBaseUrl = configuration["KeycloakConfiguration:BaseUrl"] ?? "http://keycloak-service.agrosolutions-identity:8080";
-        services.AddHttpClient<IKeycloakService, KeycloakService>(client =>
-        {
-            client.BaseAddress = new Uri(keycloakBaseUrl);
-        }).AddStandardResilienceHandler();
+        var keycloakBaseUrl =
+            configuration["KeycloakConfiguration:BaseUrl"]
+            ?? "http://keycloak-service.agrosolutions-identity:8080";
+        services
+            .AddHttpClient<IKeycloakService, KeycloakService>(client =>
+            {
+                client.BaseAddress = new Uri(keycloakBaseUrl);
+            })
+            .AddStandardResilienceHandler();
 
         // Configurações
         services.Configure<KeycloakConfiguration>(
