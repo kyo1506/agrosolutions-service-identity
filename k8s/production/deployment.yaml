@@ -17,6 +17,7 @@ spec:
       labels:
         app: identity-api
     spec:
+      serviceAccountName: agrosolutions-identity-sa  # IRSA - IAM Role for Service Accounts
       terminationGracePeriodSeconds: 30
       containers:
       - name: identity-api
@@ -45,17 +46,6 @@ spec:
             secretKeyRef:
               name: jwt-secrets
               key: issuer
-        # AWS Credentials
-        - name: AWS__AccessKeyId
-          valueFrom:
-            secretKeyRef:
-              name: aws-credentials
-              key: access-key-id
-        - name: AWS__SecretAccessKey
-          valueFrom:
-            secretKeyRef:
-              name: aws-credentials
-              key: secret-access-key
         resources:
           requests:
             memory: "256Mi"

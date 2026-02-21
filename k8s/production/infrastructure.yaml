@@ -1,6 +1,29 @@
 ---
-# AWS IAM Role for Service Account (IRSA) Annotation
-# This allows pods to assume AWS IAM roles without explicit credentials
+# AWS IAM Role for Service Account (IRSA)
+# Permite pods assumirem IAM Roles sem credenciais explícitas
+# 
+# Configuração:
+# - ServiceAccount: agrosolutions-identity-sa
+# - IAM Role: AgroSolutionsIdentityServiceRole
+# - Políticas: SNS, SQS, SES (conforme necessário)
+# 
+# Para criar o IAM Role:
+# aws iam create-role --role-name AgroSolutionsIdentityServiceRole \
+#   --assume-role-policy-document file://trust-policy.json
+# 
+# Trust policy deve incluir o OIDC provider do EKS:
+# {
+#   "Effect": "Allow",
+#   "Principal": {
+#     "Federated": "arn:aws:iam::316295889438:oidc-provider/oidc.eks.sa-east-1.amazonaws.com/id/YOUR_OIDC_ID"
+#   },
+#   "Action": "sts:AssumeRoleWithWebIdentity",
+#   "Condition": {
+#     "StringEquals": {
+#       "oidc.eks.sa-east-1.amazonaws.com/id/YOUR_OIDC_ID:sub": "system:serviceaccount:agrosolutions-identity:agrosolutions-identity-sa"
+#     }
+#   }
+# }
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -10,26 +33,10 @@ metadata:
     eks.amazonaws.com/role-arn: arn:aws:iam::316295889438:role/AgroSolutionsIdentityServiceRole
 
 ---
-# Note: Secrets should be created manually or via GitOps/Sealed Secrets
-# The following are TEMPLATES - do NOT commit actual secrets to Git
+# Note: Secrets devem ser criados via GitHub Actions ou GitOps
+# Nunca commitar secrets reais no repositório
 
-# Example: Create secrets using kubectl
-# kubectl create secret generic keycloak-client-secrets \
-#   --from-literal=admin-client-secret=YOUR_ADMIN_SECRET \
-#   --from-literal=api-client-secret=YOUR_API_SECRET \
-#   -n agrosolutions-identity
-
-# kubectl create secret generic jwt-secrets \
-#   --from-literal=issuer=http://keycloak-service:8080/realms/agrosolutions \
-#   -n agrosolutions-identity
-
-# kubectl create secret generic database-secrets \
-#   --from-literal=keycloak-db-user=keycloak \
-#   --from-literal=keycloak-db-password=YOUR_DB_PASSWORD \
-#   --from-literal=postgres-exporter-dsn='postgresql://keycloak:YOUR_DB_PASSWORD@keycloak-db-service:5432/keycloak?sslmode=disable' \
-#   -n agrosolutions-identity
-
-# kubectl create secret generic aws-credentials \
-#   --from-literal=access-key-id=YOUR_AWS_ACCESS_KEY \
-#   --from-literal=secret-access-key=YOUR_AWS_SECRET_KEY \
-#   -n agrosolutions-identity
+# Secrets necessários:
+# - keycloak-client-secrets: admin-client-secret, api-client-secret
+# - jwt-secrets: issuer
+# - database-secrets: keycloak-db-user, keycloak-db-password, postgres-exporter-dsn

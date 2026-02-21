@@ -14,6 +14,7 @@ env:
   ECR_REPOSITORY: agrosolutions-identity-api
   EKS_CLUSTER_NAME: agrosolutions-eks-cluster
   AWS_REGION: sa-east-1
+  AWS_ROLE_TO_ASSUME: arn:aws:iam::316295889438:role/AgroSolutionsGatewayGithubActionsRole
   DOTNET_VERSION: "10.0.x"
 
 jobs:
@@ -45,15 +46,18 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      id-token: write   # Required for OIDC
+      contents: read    # Required to checkout code
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+          role-session-name: GitHubActions-IdentityDeploy-${{ github.run_id }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Verify AWS connection
@@ -139,12 +143,6 @@ jobs:
             --from-literal=postgres-exporter-dsn="postgresql://keycloak:${{ secrets.KEYCLOAK_DB_PASSWORD }}@keycloak-db-service:5432/keycloak?sslmode=disable" \
             -n agrosolutions-identity --dry-run=client -o yaml | kubectl apply -f -
           
-          # AWS Credentials
-          kubectl create secret generic aws-credentials \
-            --from-literal=access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
-            --from-literal=secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-            -n agrosolutions-identity --dry-run=client -o yaml | kubectl apply -f -
-          
           echo "✅ Secrets configurados com sucesso!"
 
           echo "🔧 Aplicando ConfigMaps..."
@@ -174,11 +172,6 @@ jobs:
 
           echo "🌐 Aplicando Ingress..."
           kubectl apply -f k8s/production/ingress-aws.yaml
-          kubectl apply -f k8s/production/ingress-grafana.yaml
-
-          echo "📊 Aplicando configurações de observabilidade..."
-          kubectl apply -f k8s/production/prometheus-rbac.yaml
-          kubectl apply -f k8s/production/observability.yaml
 
           echo "⚙️ Aplicando Resource Configs..."
           kubectl apply -f k8s/production/resource-configs.yaml
@@ -287,6 +280,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      id-token: write   # Required for OIDC
+      contents: read    # Required to checkout code
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -315,12 +311,12 @@ jobs:
         if: steps.lambda-changes.outputs.changed == 'true'
         run: dotnet tool install -g Amazon.Lambda.Tools
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials via OIDC
         if: steps.lambda-changes.outputs.changed == 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+          role-session-name: GitHubActions-LambdaDeploy-${{ github.run_id }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Verify IAM Role exists
