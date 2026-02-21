@@ -105,7 +105,7 @@ public class KeycloakService(
                 var roleAssigned = await AssignRealmRoleToUserAsync(newUserId, [request.Role]);
                 if (!roleAssigned)
                 {
-                    await DeleteUserAsync(Guid.Parse(newUserId)); // Rollback
+                    await DeleteUserAsync(Guid.Parse(newUserId));
                     notifier.Handle(
                         new Notification(
                             $"User created, but failed to assign role '{request.Role}'. The creation was rolled back."
