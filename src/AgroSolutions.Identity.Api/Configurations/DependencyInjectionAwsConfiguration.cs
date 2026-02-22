@@ -1,4 +1,5 @@
 using AgroSolutions.Identity.Api.Extensions;
+using AgroSolutions.Identity.Domain.Events;
 using AgroSolutions.Identity.Domain.Interfaces;
 using AgroSolutions.Identity.Domain.Notifications;
 using AgroSolutions.Identity.Infrastructure.BackgroundJobs;
@@ -111,6 +112,13 @@ public static class DependencyInjectionAwsConfiguration
                         retry.Ignore<ArgumentNullException>();
                         retry.Ignore<InvalidOperationException>();
                     });
+
+                    // Mapear eventos ao tópico SNS correto
+                    // Sem isso, MassTransit cria tópicos com o namespace completo do tipo,
+                    // ex: "AgroSolutions_Identity_Domain_Events-UserCreatedEvent"
+                    cfg.Message<UserCreatedEvent>(m => m.SetEntityName("agrosolutions-user-events"));
+                    cfg.Message<UserUpdatedEvent>(m => m.SetEntityName("agrosolutions-user-events"));
+                    cfg.Message<UserDeletedEvent>(m => m.SetEntityName("agrosolutions-user-events"));
 
                     // Configurar filas SQS
                     cfg.ConfigureEndpoints(context);
