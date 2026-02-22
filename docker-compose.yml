@@ -107,9 +107,9 @@ services:
       - AWS__SQS__Queues__StatusChangedQueue=agrosolutions-status-changed-queue
 
       # SNS Topics (REAIS - já criados)
-      - AWS__SNS__Topics__UserEvents=arn:aws:sns:sa-east-1:405114419969:agrosolutions-user-events
-      - AWS__SNS__Topics__EmailNotifications=arn:aws:sns:sa-east-1:405114419969:agrosolutions-email-notifications
-      - AWS__SNS__Topics__PropertyEvents=arn:aws:sns:sa-east-1:405114419969:agrosolutions-property-events
+      - AWS__SNS__Topics__UserEvents=arn:aws:sns:sa-east-1:316295889438:agrosolutions-user-events
+      - AWS__SNS__Topics__EmailNotifications=arn:aws:sns:sa-east-1:316295889438:agrosolutions-email-notifications
+      - AWS__SNS__Topics__PropertyEvents=arn:aws:sns:sa-east-1:316295889438:agrosolutions-property-events
 
       # SES Configuration (REAL - já configurado)
       - AWS__SES__FromEmail=vinicius_pinheiro02@hotmail.com
