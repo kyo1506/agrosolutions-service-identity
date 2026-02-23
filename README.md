@@ -1,12 +1,12 @@
 # AgroSolutions Identity Service
 
-Serviço de autenticação e gestão de usuários usando Keycloak com integração AWS (SQS, SNS, SES, Lambda).
+Serviço de autenticação e gestão de identidade usando Keycloak com integração AWS (SQS/SNS via MassTransit, SES, Lambda).
 
 ## 🚀 Quick Start
 
 ### ⚠️ Importante
 
-Este projeto **não possui desenvolvimento local**. Toda infraestrutura de mensageria e email utiliza **AWS real** em conta de produção.
+Este projeto **não possui desenvolvimento local**. Toda infraestrutura de mensageria e email utiliza **AWS real** em conta de produção (região `sa-east-1`).
 
 ### Pré-requisitos
 
@@ -24,17 +24,13 @@ aws configure
 # 2. Criar recursos AWS (seguir guia completo)
 # Ver: docs/AWS_DEPLOYMENT.md
 
-# 3. Atualizar ACCOUNT_ID no appsettings.Production.json
-sed -i "s/ACCOUNT_ID/$(aws sts get-caller-identity --query Account --output text)/g" \
-  src/AgroSolutions.Identity.Api/appsettings.Production.json
-
-# 4. Instalar dependências
+# 3. Instalar dependências
 dotnet restore
 
-# 5. Build
+# 4. Build
 dotnet build
 
-# 6. Rodar API (conecta na AWS real)
+# 5. Rodar API (conecta na AWS real)
 dotnet run --project src/AgroSolutions.Identity.Api --environment Production
 ```
 
@@ -46,21 +42,27 @@ dotnet run --project src/AgroSolutions.Identity.Api --environment Production
 ## 🏗️ Arquitetura de Produção (AWS)
 
 ```
-Identity API → SNS Topic (user-events) → Fan-out para:
-                                        ├─ SQS: produtor-sync-queue → Properties API
-                                        ├─ SQS: email-queue → Lambda → SES  
-                                        └─ SQS: status-changed-queue → Outros Consumidores
+Identity API → MassTransit → SNS Topic (agrosolutions-user-events) → Fan-out para:
+                                        ├─ SQS: agrosolutions-identity-events → Consumidores
+                                        └─ SQS: email-queue → Lambda (EmailProcessor) → SES
 
-SNS Topic (email-notifications) → SQS: email-queue → Lambda → SES
+                         ┌──────────────────────────────────────┐
+                         │         Outbox Pattern               │
+                         │  Evento → PostgreSQL (pending)       │
+                         │         ↓                            │
+                         │  OutboxProcessorJob (10s polling)    │
+                         │         ↓                            │
+                         │  MassTransit → SNS → SQS             │
+                         └──────────────────────────────────────┘
 ```
 
 ### Fluxo de Eventos
 
-1. **Usuário criado/atualizado** → API publica em SNS `user-events`
-2. **Fan-out automático** → SNS distribui para filas SQS
-3. **Properties API** consome `produtor-sync-queue` para sincronizar produtores
-4. **Email Lambda** processa `email-queue` e envia via SES
-5. **Outros serviços** consomem `status-changed-queue` conforme necessário
+1. **Usuário criado/atualizado/deletado** → `ResilientEventPublisher` persiste no Outbox (PostgreSQL)
+2. **Publicação imediata** → Circuit Breaker protege contra falhas em cascata; se aberto, o `OutboxProcessorJob` reprocessa
+3. **MassTransit** publica no tópico SNS `agrosolutions-user-events`
+4. **Fan-out SNS** → distribui para filas SQS inscritas
+5. **Email Lambda** (`AgroSolutions-EmailProcessor`) consome a fila e envia via SES
 
 ## ⚙️ Configuração
 
@@ -69,72 +71,93 @@ SNS Topic (email-notifications) → SQS: email-queue → Lambda → SES
 ```json
 {
   "AWS": {
-    "Region": "us-east-1",
+    "Region": "sa-east-1",
     "SQS": {
       "Queues": {
-        "IdentityEvents": "agrosolutions-identity-events",
-        "EmailQueue": "agrosolutions-email-queue",
-        "ProdutorSyncQueue": "agrosolutions-produtor-sync-queue",
-        "StatusChangedQueue": "agrosolutions-status-changed-queue"
+        "IdentityEvents": "agrosolutions-identity-events"
       }
     },
     "SNS": {
       "Topics": {
-        "UserEvents": "arn:aws:sns:us-east-1:ACCOUNT_ID:agrosolutions-user-events",
-        "EmailNotifications": "arn:aws:sns:us-east-1:ACCOUNT_ID:agrosolutions-email-notifications",
-        "PropertyEvents": "arn:aws:sns:us-east-1:ACCOUNT_ID:agrosolutions-property-events"
+        "UserEvents": "arn:aws:sns:sa-east-1:316295889438:agrosolutions-user-events"
       }
     },
     "SES": {
-      "FromEmail": "noreply@agrosolutions.com.br",
+      "FromEmail": "vinicius_pinheiro02@hotmail.com",
       "FromName": "AgroSolutions",
-      "ConfigurationSetName": "agrosolutions-production",
-      "VerifiedEmails": [
-        "noreply@agrosolutions.com.br",
-        "admin@agrosolutions.com.br",
-        "suporte@agrosolutions.com.br"
-      ]
+      "ConfigurationSetName": "agrosolutions-production"
+    },
+    "Lambda": {
+      "EmailProcessorArn": "arn:aws:lambda:sa-east-1:316295889438:function:AgroSolutions-EmailProcessor"
     }
+  },
+  "ConnectionStrings": {
+    "OutboxDb": "Host=<host>;Database=outbox;Username=postgres;Password=<password>"
   }
 }
 ```
 
-**IMPORTANTE**: Substitua `ACCOUNT_ID` pelo seu AWS Account ID real.
-
 ## ⚙️ Tecnologias
 
-- **.NET 10** - Framework
-- **Keycloak** - Identity Provider
-- **Amazon SQS/SNS** - Message Broker e Topics
-- **Amazon SES** - Email Service
-- **AWS Lambda** - Serverless email processing (.NET 8)
-- **MassTransit** - Messaging abstraction
-- **PostgreSQL** - Outbox pattern database
+| Camada | Tecnologia | Versão | Finalidade |
+|--------|-----------|--------|------------|
+| Framework | **.NET** | 10.0 | Runtime da API |
+| Identity Provider | **Keycloak** | 26.5.2 | Emissão de JWT, gestão de usuários |
+| Messaging | **MassTransit + Amazon SQS/SNS** | 8.5.x | Publicação de eventos de domínio |
+| Email | **Amazon SES** | SDK 4.x | Envio transacional de e-mails |
+| Serverless | **AWS Lambda** | .NET 8 | Processamento assíncrono de emails |
+| Banco de dados | **PostgreSQL** | 16 | Outbox Pattern (garantia de entrega) |
+| ORM | **Entity Framework Core** | 10.x | Acesso ao banco Outbox |
+| Resiliência | **Polly** | 8.x | Circuit Breaker, Retry, Timeout |
+| Observabilidade | **OpenTelemetry** | 1.x | Traces, Métricas, Logs |
+| API Docs | **Scalar** | - | Documentação interativa (substitui Swagger) |
 
 ## 🔐 Credenciais AWS
 
-As credenciais AWS são configuradas via **variáveis de ambiente**:
+As credenciais AWS são configuradas via **variáveis de ambiente** ou **IAM Role** (recomendado em produção):
 
 ```bash
 export AWS_ACCESS_KEY_ID=your_access_key_id
 export AWS_SECRET_ACCESS_KEY=your_secret_access_key
-export AWS_DEFAULT_REGION=us-east-1
+export AWS_DEFAULT_REGION=sa-east-1
 ```
 
 ### Arquivo .env (Desenvolvimento)
-
-Copie o arquivo de exemplo e configure suas credenciais:
 
 ```bash
 cp .env.example .env
 # Edite .env com suas credenciais AWS
 ```
 
-**⚠️ IMPORTANTE**: Nunca commite o arquivo `.env` com credenciais reais. O arquivo `.env.example` serve apenas como template.
+**⚠️ IMPORTANTE**: Nunca commite o arquivo `.env` com credenciais reais.
 
 ### IAM Role (Produção - Recomendado)
 
-Para EC2, ECS, EKS ou Lambda, use IAM roles anexadas ao recurso. Não é necessário configurar variáveis de ambiente explícitas.
+Em EKS, use a IAM Role anexada ao node group ou via IRSA (IAM Roles for Service Accounts). Não é necessário configurar variáveis de ambiente explícitas.
+
+## 🌐 Endpoints da API
+
+### Autenticação e Usuários (`AuthController`)
+
+| Método | Rota | Auth | Scope | Descrição |
+|--------|------|------|-------|-----------|
+| `POST` | `/v1/login` | Não | - | Login com username/email e senha |
+| `POST` | `/v1/register` | Não | - | Registro de novo usuário |
+| `GET` | `/v1/users` | Sim | `users:manage` | Listar todos os usuários |
+| `GET` | `/v1/users/{id}` | Sim | `users:read` | Buscar usuário por ID |
+| `PUT` | `/v1/users/{id}` | Sim | `users:manage` | Atualizar usuário (admin) |
+| `DELETE` | `/v1/users/{id}` | Sim | `users:manage` | Desabilitar usuário (soft delete) |
+| `GET` | `/v1/profile` | Sim | `profiles:manage` | Obter perfil do usuário autenticado |
+| `PUT` | `/v1/profile` | Sim | `profiles:manage` | Atualizar perfil próprio |
+
+### Validação Inter-Serviços (`ValidationController`)
+
+| Método | Rota | Auth | Descrição |
+|--------|------|------|-----------|
+| `POST` | `/v1/validate-token` | Bearer Token | Valida JWT e retorna dados do usuário |
+| `POST` | `/v1/validate-permission` | Bearer Token | Verifica se usuário tem permissão em recurso:ação |
+
+> Os endpoints de validação são usados internamente pelos demais microserviços da plataforma.
 
 ## ✅ Health Check
 
@@ -150,13 +173,13 @@ dotnet test src/AgroSolutions.Identity.Test
 
 ## 💰 Custos AWS Estimados
 
-Para 10k usuários e 1k emails/dia:
+Para 10k usuários e 1k emails/dia (região `sa-east-1`):
 
 - SQS: ~$0.50/mês
 - SNS: ~$0.20/mês
 - SES: ~$3.00/mês
 - Lambda: ~$1.00/mês
-- CloudWatch: ~$5.00/mês
+- CloudWatch/Logs: ~$5.00/mês
 
 **Total**: ~$10/mês
 
@@ -165,30 +188,31 @@ Para 10k usuários e 1k emails/dia:
 ## 🆘 Precisa de Ajuda?
 
 1. **Configuração AWS**: Ver [AWS_DEPLOYMENT.md](docs/AWS_DEPLOYMENT.md)
-2. **Troubleshooting**: Seção 11 do deployment guide
+2. **Troubleshooting**: Seção de troubleshooting do deployment guide
 3. **Custos inesperados**: Configurar billing alerts e revisar CloudWatch logs retention
 
 ## 📋 Checklist de Deploy
 
 ### Setup Inicial (Manual - Uma vez)
 - [ ] AWS CLI configurado (`aws sts get-caller-identity`)
-- [ ] Filas SQS criadas (identity-events, email-queue, produtor-sync-queue, status-changed-queue)
-- [ ] Tópicos SNS criados (user-events, email-notifications, property-events)
-- [ ] Subscriptions SNS → SQS configuradas
-- [ ] Emails SES verificados (noreply@, admin@, suporte@)
-- [ ] **IAM Role para Lambda criada** (AgroSolutions-Lambda-EmailProcessor-Role)
-- [ ] GitHub Secrets configurados (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, etc.)
+- [ ] Fila SQS criada: `agrosolutions-identity-events`
+- [ ] Tópico SNS criado: `agrosolutions-user-events`
+- [ ] Subscription SNS → SQS configurada
+- [ ] Email verificado no SES
+- [ ] **IAM Role para Lambda criada** (`AgroSolutions-Lambda-EmailProcessor-Role`)
+- [ ] GitHub Secrets configurados (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` ou OIDC Role)
 - [ ] EKS Cluster criado e configurado
 
 ### Deploy Automático (via CI/CD)
 - [ ] Push para branch `main` dispara pipeline
 - [ ] Build e testes passam com sucesso
-- [ ] Docker image enviada para ECR
-- [ ] Aplicação deployada no EKS
+- [ ] Docker image enviada para ECR (`sa-east-1`)
+- [ ] Kubernetes secrets criados (Keycloak, JWT, Database)
+- [ ] Aplicação deployada no EKS (`agrosolutions-identity` namespace)
 - [ ] **Lambda deployada automaticamente** (se houver mudanças em `lambda/`)
 - [ ] Event source mapping SQS → Lambda configurado automaticamente
 - [ ] Health checks passando
-- [ ] Monitoramento CloudWatch ativo
+- [ ] HPA aplicado (auto scaling)
 
 ## 📝 License
 
