@@ -4,17 +4,6 @@ Serviço de autenticação e gestão de identidade usando Keycloak com integraç
 
 ## 🚀 Quick Start
 
-### ⚠️ Importante
-
-Este projeto **não possui desenvolvimento local**. Toda infraestrutura de mensageria e email utiliza **AWS real** em conta de produção (região `sa-east-1`).
-
-### Pré-requisitos
-
-1. **Conta AWS** com credenciais configuradas
-2. **.NET 10 SDK** instalado
-3. **AWS CLI** configurado
-4. **Recursos AWS** criados (SQS, SNS, SES, Lambda)
-
 ### Deploy
 
 ```bash
@@ -170,49 +159,6 @@ curl http://localhost:5001/health
 ```bash
 dotnet test src/AgroSolutions.Identity.Test
 ```
-
-## 💰 Custos AWS Estimados
-
-Para 10k usuários e 1k emails/dia (região `sa-east-1`):
-
-- SQS: ~$0.50/mês
-- SNS: ~$0.20/mês
-- SES: ~$3.00/mês
-- Lambda: ~$1.00/mês
-- CloudWatch/Logs: ~$5.00/mês
-
-**Total**: ~$10/mês
-
-**Free Tier** (primeiro ano): Praticamente gratuito se dentro dos limites.
-
-## 🆘 Precisa de Ajuda?
-
-1. **Configuração AWS**: Ver [AWS_DEPLOYMENT.md](docs/AWS_DEPLOYMENT.md)
-2. **Troubleshooting**: Seção de troubleshooting do deployment guide
-3. **Custos inesperados**: Configurar billing alerts e revisar CloudWatch logs retention
-
-## 📋 Checklist de Deploy
-
-### Setup Inicial (Manual - Uma vez)
-- [ ] AWS CLI configurado (`aws sts get-caller-identity`)
-- [ ] Fila SQS criada: `agrosolutions-identity-events`
-- [ ] Tópico SNS criado: `agrosolutions-user-events`
-- [ ] Subscription SNS → SQS configurada
-- [ ] Email verificado no SES
-- [ ] **IAM Role para Lambda criada** (`AgroSolutions-Lambda-EmailProcessor-Role`)
-- [ ] GitHub Secrets configurados (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` ou OIDC Role)
-- [ ] EKS Cluster criado e configurado
-
-### Deploy Automático (via CI/CD)
-- [ ] Push para branch `main` dispara pipeline
-- [ ] Build e testes passam com sucesso
-- [ ] Docker image enviada para ECR (`sa-east-1`)
-- [ ] Kubernetes secrets criados (Keycloak, JWT, Database)
-- [ ] Aplicação deployada no EKS (`agrosolutions-identity` namespace)
-- [ ] **Lambda deployada automaticamente** (se houver mudanças em `lambda/`)
-- [ ] Event source mapping SQS → Lambda configurado automaticamente
-- [ ] Health checks passando
-- [ ] HPA aplicado (auto scaling)
 
 ## 📝 License
 
